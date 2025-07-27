@@ -1,0 +1,49 @@
+#!/bin/bash
+# Intentional post-commit hook
+# This hook is triggered after a commit is made
+
+# Get commit information
+COMMIT_HASH=$(git rev-parse HEAD)
+COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+COMMIT_AUTHOR=$(git log -1 --pretty=%an)
+COMMIT_EMAIL=$(git log -1 --pretty=%ae)
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+# Get changed files
+CHANGED_FILES=$(git diff-tree --no-commit-id --name-status -r HEAD | jq -Rs '
+  split("\n") | 
+  map(select(length > 0) | split("\t") | {status: .[0], path: .[1]}) | 
+  map(select(.path != null))
+')
+
+# Get stats
+STATS=$(git diff --stat HEAD~1 HEAD | tail -1)
+
+# Create a commit info file for Intentional to process
+INTENTIONAL_DIR=".intentional.dev/commits"
+mkdir -p "$INTENTIONAL_DIR"
+
+# Create a JSON file with commit info
+cat > "$INTENTIONAL_DIR/${COMMIT_HASH}.json" << EOF
+{
+  "hash": "$COMMIT_HASH",
+  "message": $(echo "$COMMIT_MESSAGE" | jq -Rs .),
+  "author": "$COMMIT_AUTHOR",
+  "email": "$COMMIT_EMAIL",
+  "branch": "$BRANCH",
+  "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "files": $CHANGED_FILES,
+  "stats": $(echo "$STATS" | jq -Rs .),
+  "processed": false
+}
+EOF
+
+# Check if Intentional agent is configured
+if [ -f ".intentional.dev/config/agent.json" ]; then
+    # Notify Intentional that a new commit needs processing
+    echo ""
+    echo "🤖 [Intentional] Commit recorded for AI analysis"
+    echo "   Branch: $BRANCH"
+    echo "   Files changed: $(echo "$CHANGED_FILES" | jq -r 'length')"
+    echo "   The product agent will analyze this when Intentional is running"
+fi

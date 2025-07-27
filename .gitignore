@@ -6,3 +6,4 @@ dist-app/
 .env
 .env.local
 *.dmg
+.intentional.dev/

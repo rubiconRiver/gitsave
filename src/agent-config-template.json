@@ -1,0 +1,25 @@
+{
+  "enabled": true,
+  "type": "product-agent",
+  "capabilities": {
+    "analyzeCommits": true,
+    "suggestNextSteps": true,
+    "generateDocumentation": true,
+    "reviewCode": true,
+    "trackProgress": true
+  },
+  "triggers": {
+    "onCommit": true,
+    "onBranchCreate": true,
+    "onMerge": true
+  },
+  "settings": {
+    "autoSummarize": true,
+    "notifyOnInsights": true,
+    "language": "conversational"
+  },
+  "prompts": {
+    "commitAnalysis": "You are a product development assistant. Analyze this commit and provide insights about: 1) What was accomplished, 2) How it fits into the larger product vision, 3) Potential next steps or improvements.",
+    "progressTracking": "Based on recent commits, summarize the development progress and suggest priorities."
+  }
+}

@@ -72,10 +72,17 @@ mb.on('ready', async () => {
   // Update tray title and git info periodically
   updateTrayTitle();
   updateGitInfo();
+  checkForUnprocessedCommits(); // Check on startup
+  
   setInterval(() => {
     updateTrayTitle();
     updateGitInfo();
   }, 2000); // Check every 2 seconds
+  
+  // Check for unprocessed commits less frequently
+  setInterval(() => {
+    checkForUnprocessedCommits();
+  }, 10000); // Check every 10 seconds
 });
 
 mb.on('after-create-window', () => {
@@ -160,6 +167,75 @@ async function recordBranchOwner(branchName: string, owner: string, email: strin
   await saveBranchOwnership(ownership);
 }
 
+// Git hooks management
+async function installGitHooks(): Promise<void> {
+  if (!currentRepo.path) return;
+  
+  try {
+    const hooksDir = path.join(currentRepo.path, '.git', 'hooks');
+    const intentionalHooksDir = path.join(__dirname, '..', 'src', 'hooks');
+    
+    // Ensure hooks directory exists
+    await fs.mkdir(hooksDir, { recursive: true });
+    
+    // Copy post-commit hook
+    const postCommitSource = path.join(intentionalHooksDir, 'post-commit');
+    const postCommitDest = path.join(hooksDir, 'post-commit');
+    
+    await fs.copyFile(postCommitSource, postCommitDest);
+    // Make it executable
+    await fs.chmod(postCommitDest, '755');
+    
+    console.log('Git hooks installed successfully');
+  } catch (error) {
+    console.error('Failed to install git hooks:', error);
+  }
+}
+
+async function checkForUnprocessedCommits(): Promise<void> {
+  if (!currentRepo.path) return;
+  
+  try {
+    const commitsDir = path.join(currentRepo.path, '.intentional.dev', 'commits');
+    
+    try {
+      const files = await fs.readdir(commitsDir);
+      const jsonFiles = files.filter(f => f.endsWith('.json'));
+      
+      for (const file of jsonFiles) {
+        const filePath = path.join(commitsDir, file);
+        const data = await fs.readFile(filePath, 'utf-8');
+        const commit = JSON.parse(data);
+        
+        if (!commit.processed) {
+          // Here's where the "product agent" would analyze the commit
+          console.log('Unprocessed commit found:', commit.hash);
+          
+          // For now, just mark it as processed
+          commit.processed = true;
+          commit.processedAt = new Date().toISOString();
+          
+          // In the future, this could:
+          // - Send to an AI agent for analysis
+          // - Generate insights about the changes
+          // - Suggest next steps
+          // - Create documentation
+          // - etc.
+          
+          await fs.writeFile(filePath, JSON.stringify(commit, null, 2));
+        }
+      }
+    } catch (error) {
+      // Directory might not exist yet
+      if ((error as any).code !== 'ENOENT') {
+        console.error('Error checking commits:', error);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to check for unprocessed commits:', error);
+  }
+}
+
 async function updateGitInfo() {
   if (!currentRepo.path) return;
   
@@ -214,6 +290,9 @@ async function loadRepository(repoPath: string) {
       if (mb.window) {
         mb.window.webContents.send('repo-loaded', currentRepo);
       }
+      
+      // Install git hooks for this repository
+      await installGitHooks();
       
       console.log('Loaded repository:', currentRepo);
       return true;
@@ -823,6 +902,32 @@ ipcMain.handle('git:getBranches', async () => {
     };
   } catch (error: any) {
     return { error: error.message || 'Failed to get branches' };
+  }
+});
+
+// Hook management handlers
+ipcMain.handle('hooks:install', async () => {
+  try {
+    await installGitHooks();
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to install hooks' };
+  }
+});
+
+ipcMain.handle('agent:configure', async (_, config: any) => {
+  if (!currentRepo.path) return { error: 'No repository selected' };
+  
+  try {
+    const configDir = path.join(currentRepo.path, '.intentional.dev', 'config');
+    await fs.mkdir(configDir, { recursive: true });
+    
+    const configPath = path.join(configDir, 'agent.json');
+    await fs.writeFile(configPath, JSON.stringify(config, null, 2));
+    
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to save agent configuration' };
   }
 });
 
