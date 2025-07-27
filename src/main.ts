@@ -184,6 +184,51 @@ ipcMain.handle('git:status', async () => {
   }
 });
 
+ipcMain.handle('git:checkAuth', async () => {
+  if (!currentRepo.path) return { error: 'No repository selected' };
+  
+  try {
+    const git = simpleGit(currentRepo.path);
+    
+    // Check if user.name and user.email are configured
+    const [userName, userEmail] = await Promise.all([
+      git.getConfig('user.name'),
+      git.getConfig('user.email')
+    ]);
+    
+    if (!userName.value || !userEmail.value) {
+      return {
+        configured: false,
+        missing: {
+          name: !userName.value,
+          email: !userEmail.value
+        },
+        guidance: 'Git is not fully configured. To fix this:\n\n1. Open Terminal\n2. Run these commands:\n   git config --global user.name "Your Name"\n   git config --global user.email "your.email@example.com"\n\n3. Restart Intentional'
+      };
+    }
+    
+    // Check for credential helper
+    const credentialHelper = await git.getConfig('credential.helper');
+    
+    // Check for remotes
+    const remotes = await git.getRemotes(true);
+    
+    return {
+      configured: true,
+      userName: userName.value,
+      userEmail: userEmail.value,
+      credentialHelper: credentialHelper.value || 'none',
+      hasRemotes: remotes.length > 0,
+      remotes: remotes.map(r => ({
+        name: r.name,
+        url: r.refs.push || r.refs.fetch
+      }))
+    };
+  } catch (error: any) {
+    return { error: error.message || 'Unknown error checking authentication' };
+  }
+});
+
 ipcMain.handle('git:save', async (_, message: string) => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
@@ -198,8 +243,20 @@ ipcMain.handle('git:save', async (_, message: string) => {
     
     await git.add('.');
     await git.commit(message || 'WIP');
-    await git.push();
-    return { success: true };
+    
+    // Try to push, but don't fail if it doesn't work
+    try {
+      await git.push();
+      return { success: true, pushed: true };
+    } catch (pushError: any) {
+      // Commit succeeded but push failed
+      return { 
+        success: true, 
+        pushed: false,
+        pushError: pushError.message,
+        warning: 'Changes saved locally but not pushed to remote. Use the Push button when ready.'
+      };
+    }
   } catch (error: any) {
     return { error: error.message || 'Unknown error' };
   }
@@ -223,10 +280,69 @@ ipcMain.handle('git:push', async () => {
   
   try {
     const git = simpleGit(currentRepo.path);
+    
+    // Check if we have a remote configured
+    const remotes = await git.getRemotes(true);
+    if (remotes.length === 0) {
+      return { 
+        error: 'No remote repository configured',
+        authError: true,
+        guidance: 'This repository is not connected to GitHub/GitLab. To fix this:\n\n1. Open Terminal\n2. Navigate to your project folder\n3. Run: git remote add origin [your-repository-url]\n4. Try pushing again'
+      };
+    }
+    
     await git.push();
     return { success: true };
   } catch (error: any) {
-    return { error: error.message || 'Unknown error' };
+    const errorMessage = error.message || 'Unknown error';
+    
+    // Analyze error for specific authentication issues
+    if (errorMessage.includes('Authentication failed') || 
+        errorMessage.includes('could not read Username') ||
+        errorMessage.includes('Invalid username or password') ||
+        errorMessage.includes('remote: Invalid username or password') ||
+        errorMessage.includes('fatal: Authentication failed')) {
+      return { 
+        error: 'Authentication failed',
+        authError: true,
+        guidance: 'Git needs your credentials to push. To fix this:\n\n1. Open Terminal\n2. Run one of these commands:\n   - For GitHub: gh auth login\n   - For HTTPS: git config --global credential.helper osxkeychain\n   - For SSH: ssh-keygen -t ed25519 -C "your_email@example.com"\n\n3. Follow the prompts to set up authentication\n4. Try pushing again'
+      };
+    }
+    
+    if (errorMessage.includes('Permission denied') || 
+        errorMessage.includes('ERROR: Permission to') ||
+        errorMessage.includes('403')) {
+      return { 
+        error: 'Permission denied',
+        authError: true,
+        guidance: 'You don\'t have permission to push to this repository. This could mean:\n\n1. You need to be added as a collaborator\n2. The repository belongs to someone else\n3. Your access token doesn\'t have push permissions\n\nContact the repository owner or check your permissions.'
+      };
+    }
+    
+    if (errorMessage.includes('Could not resolve host') || 
+        errorMessage.includes('unable to access')) {
+      return { 
+        error: 'Network error',
+        authError: false,
+        guidance: 'Unable to reach the Git server. Please check:\n\n1. Your internet connection\n2. If you\'re behind a firewall or VPN\n3. The repository URL is correct'
+      };
+    }
+    
+    if (errorMessage.includes('! [rejected]') || 
+        errorMessage.includes('non-fast-forward')) {
+      return { 
+        error: 'Push rejected - Remote has changes',
+        authError: false,
+        guidance: 'The remote repository has changes you don\'t have locally. To fix:\n\n1. Click "Sync" to pull remote changes\n2. Resolve any conflicts if they occur\n3. Try pushing again'
+      };
+    }
+    
+    // Generic error with the original message
+    return { 
+      error: errorMessage,
+      authError: false,
+      guidance: 'An unexpected error occurred. You might try:\n\n1. Opening Terminal and running "git push" manually to see more details\n2. Checking if the repository is properly configured\n3. Verifying your Git installation is working'
+    };
   }
 });
 

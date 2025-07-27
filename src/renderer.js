@@ -17,6 +17,7 @@ let hasChanges = false;
 
 // Initialize
 updateRepoInfo();
+checkAuthentication();
 
 // Listen for branch changes
 window.electronAPI.onBranchChanged((repo) => {
@@ -46,6 +47,7 @@ window.electronAPI.onRepoLoaded((repo) => {
   saveButton.disabled = false;
   syncButton.disabled = false;
   pushButton.disabled = false;
+  checkAuthentication();
 });
 
 // Event Listeners
@@ -93,7 +95,11 @@ async function handleSave() {
     const result = await window.gitAPI.save(message);
     
     if (result.success) {
-      showSuccess('Changes saved successfully!');
+      if (result.pushed) {
+        showSuccess('Changes saved and pushed successfully!');
+      } else {
+        showWarning(result.warning || 'Changes saved locally. Push when ready.');
+      }
       messageInput.value = '';
     } else {
       showError(result.error || 'Failed to save changes');
@@ -145,7 +151,11 @@ async function handlePush() {
     if (result.success) {
       showSuccess('Pushed successfully!');
     } else {
-      showError(result.error || 'Failed to push');
+      if (result.guidance) {
+        showErrorWithGuidance(result.error || 'Failed to push', result.guidance);
+      } else {
+        showError(result.error || 'Failed to push');
+      }
     }
   } catch (error) {
     showError('Failed to push: ' + error.message);
@@ -205,4 +215,52 @@ function showSuccess(message) {
   setTimeout(() => {
     feedback.innerHTML = '';
   }, 3000);
+}
+
+function showWarning(message) {
+  status.textContent = 'Ready';
+  feedback.innerHTML = `<div class="warning">${message}</div>`;
+  setTimeout(() => {
+    feedback.innerHTML = '';
+  }, 5000);
+}
+
+function showErrorWithGuidance(error, guidance) {
+  status.textContent = 'Ready';
+  const guidanceHtml = guidance.replace(/\n/g, '<br>');
+  feedback.innerHTML = `
+    <div class="error-with-guidance">
+      <div class="error-message">${error}</div>
+      <div class="error-guidance">${guidanceHtml}</div>
+    </div>
+  `;
+  // Don't auto-hide guidance errors - user needs time to read
+}
+
+async function checkAuthentication() {
+  try {
+    const authInfo = await window.gitAPI.checkAuth();
+    
+    if (authInfo.error) {
+      console.error('Failed to check authentication:', authInfo.error);
+      return;
+    }
+    
+    if (!authInfo.configured) {
+      showWarning('Git configuration incomplete. Push may fail without proper setup.');
+      return;
+    }
+    
+    if (!authInfo.hasRemotes) {
+      showWarning('No remote repository configured. Push will fail until you add a remote.');
+      return;
+    }
+    
+    if (authInfo.credentialHelper === 'none') {
+      // Don't show warning for this - it might still work with SSH keys
+      console.log('No credential helper configured, but SSH keys might be set up');
+    }
+  } catch (error) {
+    console.error('Failed to check authentication:', error);
+  }
 }

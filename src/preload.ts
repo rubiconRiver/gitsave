@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('gitAPI', {
   sync: () => ipcRenderer.invoke('git:sync'),
   push: () => ipcRenderer.invoke('git:push'),
   status: () => ipcRenderer.invoke('git:status'),
+  checkAuth: () => ipcRenderer.invoke('git:checkAuth'),
   getRepoInfo: () => ipcRenderer.invoke('repo:info'),
   selectRepo: () => ipcRenderer.invoke('repo:select'),
   openBranches: () => ipcRenderer.invoke('branches:open'),
