@@ -119,6 +119,7 @@
       border-radius: 6px;
       cursor: pointer;
       transition: all 0.2s;
+      position: relative;
     }
     
     .branch-item:hover {
@@ -209,6 +210,33 @@
       outline: none;
       border-color: #58a6ff;
     }
+    
+    .branch-actions {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    
+    .branch-item:hover .branch-actions {
+      opacity: 1;
+    }
+    
+    .delete-btn {
+      padding: 4px 8px;
+      background: #da3633;
+      border: none;
+      border-radius: 4px;
+      color: white;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    
+    .delete-btn:hover {
+      background: #b62324;
+    }
   </style>
 </head>
 <body>
@@ -241,28 +269,18 @@
   </div>
   
   <script>
-    const { ipcRenderer } = require('electron');
-    const simpleGit = require('simple-git');
-    
     let gitData = null;
-    let git = null;
     let currentBranch = '';
     let allBranches = [];
     
     // Parse git data from main process
     try {
-      const args = process.argv.slice(-1)[0];
-      gitData = JSON.parse(args);
-      currentBranch = gitData.currentBranch;
-      allBranches = gitData.branchDetails || [];
-      
-      // Initialize simple-git with repo path
-      if (gitData.repoPath) {
-        git = simpleGit(gitData.repoPath);
+      gitData = window.initialData.get();
+      if (gitData) {
+        currentBranch = gitData.currentBranch;
+        allBranches = gitData.branchDetails || [];
+        document.getElementById('currentBranchName').textContent = currentBranch;
       }
-      
-      document.getElementById('currentBranchName').textContent = currentBranch;
-      
     } catch (error) {
       console.error('Failed to initialize:', error);
     }
@@ -355,6 +373,23 @@
           item.appendChild(name);
           item.appendChild(info);
           
+          // Add delete button for non-current branches
+          if (branch.name !== currentBranch) {
+            const actions = document.createElement('div');
+            actions.className = 'branch-actions';
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.onclick = (e) => {
+              e.stopPropagation();
+              deleteBranch(branch.name);
+            };
+            
+            actions.appendChild(deleteBtn);
+            item.appendChild(actions);
+          }
+          
           item.onclick = () => switchToBranch(branch.name);
           
           section.appendChild(item);
@@ -366,21 +401,25 @@
     
     // Switch branch
     async function switchToBranch(branchName) {
-      if (!git || branchName === currentBranch) return;
+      if (branchName === currentBranch) return;
       
       try {
         // Show loading state
         document.getElementById('currentBranchName').textContent = 'Switching...';
         
-        await git.checkout(branchName);
-        currentBranch = branchName;
-        document.getElementById('currentBranchName').textContent = currentBranch;
-        
-        // Re-render branch list
-        renderBranches(document.getElementById('searchInput').value);
-        
-        // Update visualization
-        updateVisualization();
+        const result = await window.branchAPI.switchBranch(branchName);
+        if (result.success) {
+          currentBranch = branchName;
+          document.getElementById('currentBranchName').textContent = currentBranch;
+          
+          // Re-render branch list
+          renderBranches(document.getElementById('searchInput').value);
+          
+          // Update visualization
+          updateVisualization();
+        } else {
+          throw new Error(result.error);
+        }
         
       } catch (error) {
         console.error('Failed to switch branch:', error);
@@ -392,15 +431,19 @@
     // Create new branch
     async function createBranch() {
       const name = prompt('Enter new branch name:');
-      if (!name || !git) return;
+      if (!name) return;
       
       try {
-        await git.checkoutBranch(name, currentBranch);
-        currentBranch = name;
-        document.getElementById('currentBranchName').textContent = currentBranch;
-        
-        // Refresh branch list
-        await refreshBranches();
+        const result = await window.branchAPI.createBranch(name);
+        if (result.success) {
+          currentBranch = name;
+          document.getElementById('currentBranchName').textContent = currentBranch;
+          
+          // Refresh branch list
+          await refreshBranches();
+        } else {
+          throw new Error(result.error);
+        }
         
       } catch (error) {
         console.error('Failed to create branch:', error);
@@ -410,49 +453,33 @@
     
     // Refresh branches
     async function refreshBranches() {
-      if (!git) return;
-      
       try {
-        const branches = await git.branchLocal();
-        const branchDetails = [];
-        
-        for (const branch of branches.all) {
-          try {
-            const log = await git.log([branch, '-n', '1']);
-            const lastCommit = log.latest;
-            branchDetails.push({
-              name: branch,
-              lastCommit: lastCommit ? {
-                hash: lastCommit.hash,
-                message: lastCommit.message,
-                author: lastCommit.author_name,
-                email: lastCommit.author_email,
-                date: lastCommit.date
-              } : null
-            });
-          } catch (err) {
-            console.error(`Failed to get details for branch ${branch}:`, err);
-          }
+        const result = await window.branchAPI.getBranches();
+        if (result.success) {
+          allBranches = result.branches;
+          currentBranch = result.currentBranch;
+          document.getElementById('currentBranchName').textContent = currentBranch;
+          renderBranches(document.getElementById('searchInput').value);
+        } else {
+          throw new Error(result.error);
         }
-        
-        allBranches = branchDetails;
-        renderBranches(document.getElementById('searchInput').value);
-        
       } catch (error) {
         console.error('Failed to refresh branches:', error);
+        alert('Failed to refresh branches: ' + error.message);
       }
     }
     
     // Fetch from remote
     async function fetchRemote() {
-      if (!git) return;
-      
       try {
         const btn = event.target;
         btn.textContent = 'Fetching...';
         btn.disabled = true;
         
-        await git.fetch();
+        const result = await window.branchAPI.fetch();
+        if (!result.success) {
+          throw new Error(result.error);
+        }
         
         btn.textContent = 'Fetch';
         btn.disabled = false;
@@ -465,6 +492,26 @@
         alert('Failed to fetch: ' + error.message);
         event.target.textContent = 'Fetch';
         event.target.disabled = false;
+      }
+    }
+    
+    // Delete branch
+    async function deleteBranch(branchName) {
+      if (!confirm(`Are you sure you want to delete branch "${branchName}"?`)) {
+        return;
+      }
+      
+      try {
+        const result = await window.branchAPI.deleteBranch(branchName);
+        if (result.success) {
+          // Refresh branch list
+          await refreshBranches();
+        } else {
+          throw new Error(result.error);
+        }
+      } catch (error) {
+        console.error('Failed to delete branch:', error);
+        alert('Failed to delete branch: ' + error.message);
       }
     }
     

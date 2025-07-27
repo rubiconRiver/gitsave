@@ -459,13 +459,18 @@ ipcMain.handle('branches:open', async () => {
       width: 1400,
       height: 800,
       webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: false,
-        additionalArguments: [JSON.stringify(gitData)]
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, 'branch-preload.js')
       }
     });
     
     branchWindow.loadFile(path.join(__dirname, '..', 'src', 'branch-manager.html'));
+    
+    // Send data after window is ready
+    branchWindow.webContents.once('did-finish-load', () => {
+      branchWindow.webContents.send('branch-window-data', gitData);
+    });
     
     // Non-blocking fetch in background
     git.fetch().then(() => {
@@ -478,6 +483,89 @@ ipcMain.handle('branches:open', async () => {
   } catch (error: any) {
     console.error('Failed to open branches:', error);
     return { error: error.message };
+  }
+});
+
+// Branch operation handlers
+ipcMain.handle('git:createBranch', async (_, branchName: string) => {
+  if (!currentRepo.path) return { error: 'No repository selected' };
+  
+  try {
+    const git = simpleGit(currentRepo.path);
+    await git.checkoutBranch(branchName, currentRepo.branch);
+    currentRepo.branch = branchName;
+    store.set('lastRepoBranch', branchName);
+    return { success: true, branch: branchName };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to create branch' };
+  }
+});
+
+ipcMain.handle('git:switchBranch', async (_, branchName: string) => {
+  if (!currentRepo.path) return { error: 'No repository selected' };
+  
+  try {
+    const git = simpleGit(currentRepo.path);
+    await git.checkout(branchName);
+    currentRepo.branch = branchName;
+    store.set('lastRepoBranch', branchName);
+    return { success: true, branch: branchName };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to switch branch' };
+  }
+});
+
+ipcMain.handle('git:deleteBranch', async (_, branchName: string) => {
+  if (!currentRepo.path) return { error: 'No repository selected' };
+  
+  try {
+    const git = simpleGit(currentRepo.path);
+    // Don't allow deleting current branch
+    if (branchName === currentRepo.branch) {
+      return { error: 'Cannot delete current branch' };
+    }
+    await git.deleteLocalBranch(branchName);
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to delete branch' };
+  }
+});
+
+ipcMain.handle('git:getBranches', async () => {
+  if (!currentRepo.path) return { error: 'No repository selected' };
+  
+  try {
+    const git = simpleGit(currentRepo.path);
+    const branches = await git.branchLocal();
+    
+    // Get branch details with last commit info
+    const branchDetails = [];
+    for (const branch of branches.all) {
+      try {
+        const branchLog = await git.log([branch, '-n', '1']);
+        const lastCommit = branchLog.latest;
+        branchDetails.push({
+          name: branch,
+          lastCommit: lastCommit ? {
+            hash: lastCommit.hash,
+            message: lastCommit.message,
+            author: lastCommit.author_name,
+            email: lastCommit.author_email,
+            date: lastCommit.date
+          } : null
+        });
+      } catch (err) {
+        console.error(`Failed to get details for branch ${branch}:`, err);
+      }
+    }
+    
+    return { 
+      success: true, 
+      currentBranch: branches.current,
+      branches: branchDetails 
+    };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to get branches' };
   }
 });
 
