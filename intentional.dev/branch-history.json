@@ -1,0 +1,474 @@
+{
+  "users": {
+    "alice": {
+      "name": "Alice Chen",
+      "email": "alice@team.com",
+      "color": "#FF6B6B"
+    },
+    "bob": {
+      "name": "Bob Martinez",
+      "email": "bob@team.com",
+      "color": "#4ECDC4"
+    },
+    "charlie": {
+      "name": "Charlie Kim",
+      "email": "charlie@team.com",
+      "color": "#45B7D1"
+    },
+    "dana": {
+      "name": "Dana Singh",
+      "email": "dana@team.com",
+      "color": "#96CEB4"
+    },
+    "eve": {
+      "name": "Eve Johnson",
+      "email": "eve@team.com",
+      "color": "#FECA57"
+    }
+  },
+  "branches": [
+    {
+      "name": "main",
+      "owner": null,
+      "description": "Production branch",
+      "lastCommit": {
+        "time": "2025-01-27T10:30:00Z",
+        "message": "Merge pull request #142 from feature/user-dashboard",
+        "author": "alice"
+      },
+      "commitCount": 1247,
+      "status": "active",
+      "parent": null
+    },
+    {
+      "name": "feature/user-dashboard",
+      "owner": "alice",
+      "description": "New user dashboard with analytics",
+      "lastCommit": {
+        "time": "2025-01-27T09:15:00Z",
+        "message": "Add chart animations",
+        "author": "alice"
+      },
+      "commitCount": 34,
+      "status": "active",
+      "parent": "main"
+    },
+    {
+      "name": "feature/payment-integration",
+      "owner": "bob",
+      "description": "Stripe payment gateway integration",
+      "lastCommit": {
+        "time": "2025-01-26T16:45:00Z",
+        "message": "Fix webhook handling",
+        "author": "bob"
+      },
+      "commitCount": 67,
+      "status": "active",
+      "parent": "main"
+    },
+    {
+      "name": "fix/memory-leak",
+      "owner": "charlie",
+      "description": "Fix memory leak in background worker",
+      "lastCommit": {
+        "time": "2025-01-25T14:20:00Z",
+        "message": "Properly dispose event listeners",
+        "author": "charlie"
+      },
+      "commitCount": 12,
+      "status": "active",
+      "parent": "main"
+    },
+    {
+      "name": "feature/mobile-app",
+      "owner": "dana",
+      "description": "React Native mobile companion app",
+      "lastCommit": {
+        "time": "2025-01-24T11:30:00Z",
+        "message": "Update navigation structure",
+        "author": "dana"
+      },
+      "commitCount": 156,
+      "status": "active",
+      "parent": "main",
+      "children": [
+        "feature/mobile-app-auth",
+        "feature/mobile-app-sync",
+        "feature/mobile-app-offline",
+        "feature/mobile-app-notifications",
+        "feature/mobile-app-ui"
+      ]
+    },
+    {
+      "name": "feature/mobile-app-auth",
+      "owner": "dana",
+      "description": "Authentication flow for mobile",
+      "lastCommit": {
+        "time": "2025-01-23T09:00:00Z",
+        "message": "Add biometric authentication",
+        "author": "dana"
+      },
+      "commitCount": 23,
+      "status": "active",
+      "parent": "feature/mobile-app"
+    },
+    {
+      "name": "feature/mobile-app-sync",
+      "owner": "dana",
+      "description": "Real-time sync between mobile and desktop",
+      "lastCommit": {
+        "time": "2025-01-22T15:30:00Z",
+        "message": "Implement conflict resolution",
+        "author": "dana"
+      },
+      "commitCount": 45,
+      "status": "active",
+      "parent": "feature/mobile-app"
+    },
+    {
+      "name": "feature/mobile-app-offline",
+      "owner": "eve",
+      "description": "Offline mode for mobile app",
+      "lastCommit": {
+        "time": "2025-01-21T13:15:00Z",
+        "message": "Add queue for offline operations",
+        "author": "eve"
+      },
+      "commitCount": 38,
+      "status": "active",
+      "parent": "feature/mobile-app"
+    },
+    {
+      "name": "feature/mobile-app-notifications",
+      "owner": "eve",
+      "description": "Push notifications for mobile",
+      "lastCommit": {
+        "time": "2025-01-20T10:45:00Z",
+        "message": "Setup FCM integration",
+        "author": "eve"
+      },
+      "commitCount": 19,
+      "status": "active",
+      "parent": "feature/mobile-app"
+    },
+    {
+      "name": "feature/mobile-app-ui",
+      "owner": "dana",
+      "description": "UI polish and animations",
+      "lastCommit": {
+        "time": "2025-01-19T16:00:00Z",
+        "message": "Add gesture handlers",
+        "author": "dana"
+      },
+      "commitCount": 67,
+      "status": "active",
+      "parent": "feature/mobile-app"
+    },
+    {
+      "name": "refactor/database-layer",
+      "owner": "charlie",
+      "description": "Migrate to new ORM",
+      "lastCommit": {
+        "time": "2025-01-18T14:30:00Z",
+        "message": "Update user model",
+        "author": "charlie"
+      },
+      "commitCount": 89,
+      "status": "active",
+      "parent": "main",
+      "children": [
+        "refactor/db-migrations",
+        "refactor/db-queries",
+        "refactor/db-indexes",
+        "refactor/db-connection-pool",
+        "refactor/db-tests"
+      ]
+    },
+    {
+      "name": "refactor/db-migrations",
+      "owner": "charlie",
+      "description": "Database migration scripts",
+      "lastCommit": {
+        "time": "2025-01-17T11:00:00Z",
+        "message": "Add rollback scripts",
+        "author": "charlie"
+      },
+      "commitCount": 12,
+      "status": "active",
+      "parent": "refactor/database-layer"
+    },
+    {
+      "name": "refactor/db-queries",
+      "owner": "bob",
+      "description": "Optimize database queries",
+      "lastCommit": {
+        "time": "2025-01-16T09:30:00Z",
+        "message": "Add query caching",
+        "author": "bob"
+      },
+      "commitCount": 34,
+      "status": "active",
+      "parent": "refactor/database-layer"
+    },
+    {
+      "name": "refactor/db-indexes",
+      "owner": "charlie",
+      "description": "Add missing database indexes",
+      "lastCommit": {
+        "time": "2025-01-15T15:45:00Z",
+        "message": "Index user_activities table",
+        "author": "charlie"
+      },
+      "commitCount": 8,
+      "status": "active",
+      "parent": "refactor/database-layer"
+    },
+    {
+      "name": "refactor/db-connection-pool",
+      "owner": "bob",
+      "description": "Optimize connection pooling",
+      "lastCommit": {
+        "time": "2025-01-14T12:20:00Z",
+        "message": "Increase pool size",
+        "author": "bob"
+      },
+      "commitCount": 15,
+      "status": "active",
+      "parent": "refactor/database-layer"
+    },
+    {
+      "name": "refactor/db-tests",
+      "owner": "charlie",
+      "description": "Database integration tests",
+      "lastCommit": {
+        "time": "2025-01-13T17:00:00Z",
+        "message": "Add transaction tests",
+        "author": "charlie"
+      },
+      "commitCount": 42,
+      "status": "active",
+      "parent": "refactor/database-layer"
+    },
+    {
+      "name": "experiment/ai-features",
+      "owner": "alice",
+      "description": "AI-powered code suggestions",
+      "lastCommit": {
+        "time": "2025-01-10T14:00:00Z",
+        "message": "Initial OpenAI integration",
+        "author": "alice"
+      },
+      "commitCount": 23,
+      "status": "active",
+      "parent": "main"
+    },
+    {
+      "name": "docs/api-v2",
+      "owner": "eve",
+      "description": "API v2 documentation",
+      "lastCommit": {
+        "time": "2024-12-15T11:30:00Z",
+        "message": "Add authentication docs",
+        "author": "eve"
+      },
+      "commitCount": 45,
+      "status": "stale",
+      "parent": "main"
+    },
+    {
+      "name": "feature/dark-mode",
+      "owner": "alice",
+      "description": "Dark mode theme support",
+      "lastCommit": {
+        "time": "2024-12-01T09:00:00Z",
+        "message": "WIP: theme context",
+        "author": "alice"
+      },
+      "commitCount": 18,
+      "status": "stale",
+      "parent": "main"
+    },
+    {
+      "name": "fix/login-redirect",
+      "owner": "bob",
+      "description": "Fix login redirect loop",
+      "lastCommit": {
+        "time": "2024-11-20T16:45:00Z",
+        "message": "Debug redirect logic",
+        "author": "bob"
+      },
+      "commitCount": 7,
+      "status": "stale",
+      "parent": "main"
+    },
+    {
+      "name": "feature/export-pdf",
+      "owner": "charlie",
+      "description": "PDF export functionality",
+      "lastCommit": {
+        "time": "2024-11-15T13:20:00Z",
+        "message": "Add PDF library",
+        "author": "charlie"
+      },
+      "commitCount": 12,
+      "status": "stale",
+      "parent": "main"
+    },
+    {
+      "name": "experiment/websockets",
+      "owner": "dana",
+      "description": "WebSocket real-time updates",
+      "lastCommit": {
+        "time": "2024-11-10T10:00:00Z",
+        "message": "Initial socket.io setup",
+        "author": "dana"
+      },
+      "commitCount": 29,
+      "status": "stale",
+      "parent": "main"
+    },
+    {
+      "name": "feature/user-profiles",
+      "owner": "eve",
+      "description": "Enhanced user profiles",
+      "lastCommit": {
+        "time": "2024-11-05T14:30:00Z",
+        "message": "Profile picture upload",
+        "author": "eve"
+      },
+      "commitCount": 34,
+      "status": "stale",
+      "parent": "main"
+    },
+    {
+      "name": "fix/css-overflow",
+      "owner": "alice",
+      "description": "Fix CSS overflow issues",
+      "lastCommit": {
+        "time": "2024-10-28T11:15:00Z",
+        "message": "Update container styles",
+        "author": "alice"
+      },
+      "commitCount": 3,
+      "status": "stale",
+      "parent": "main"
+    },
+    {
+      "name": "feature/analytics-v1",
+      "owner": "bob",
+      "description": "Basic analytics dashboard",
+      "lastCommit": {
+        "time": "2024-10-20T09:45:00Z",
+        "message": "Chart component stub",
+        "author": "bob"
+      },
+      "commitCount": 56,
+      "status": "stale",
+      "parent": "main"
+    },
+    {
+      "name": "refactor/auth-flow",
+      "owner": "charlie",
+      "description": "Refactor authentication flow",
+      "lastCommit": {
+        "time": "2024-10-15T15:00:00Z",
+        "message": "JWT token refresh",
+        "author": "charlie"
+      },
+      "commitCount": 41,
+      "status": "stale",
+      "parent": "main"
+    },
+    {
+      "name": "test/e2e-cypress",
+      "owner": "dana",
+      "description": "Cypress E2E test suite",
+      "lastCommit": {
+        "time": "2024-10-10T12:30:00Z",
+        "message": "Login flow tests",
+        "author": "dana"
+      },
+      "commitCount": 78,
+      "status": "stale",
+      "parent": "main"
+    },
+    {
+      "name": "feature/i18n",
+      "owner": "eve",
+      "description": "Internationalization support",
+      "lastCommit": {
+        "time": "2024-10-05T16:20:00Z",
+        "message": "Add French translations",
+        "author": "eve"
+      },
+      "commitCount": 92,
+      "status": "stale",
+      "parent": "main"
+    },
+    {
+      "name": "fix/build-warnings",
+      "owner": "alice",
+      "description": "Fix TypeScript build warnings",
+      "lastCommit": {
+        "time": "2024-09-30T10:00:00Z",
+        "message": "Type fixes",
+        "author": "alice"
+      },
+      "commitCount": 14,
+      "status": "stale",
+      "parent": "main"
+    },
+    {
+      "name": "feature/search-v2",
+      "owner": "bob",
+      "description": "Advanced search functionality",
+      "lastCommit": {
+        "time": "2024-09-25T14:45:00Z",
+        "message": "Elasticsearch integration",
+        "author": "bob"
+      },
+      "commitCount": 103,
+      "status": "stale",
+      "parent": "main"
+    },
+    {
+      "name": "docs/deployment",
+      "owner": "charlie",
+      "description": "Deployment documentation",
+      "lastCommit": {
+        "time": "2024-09-20T11:30:00Z",
+        "message": "Docker compose example",
+        "author": "charlie"
+      },
+      "commitCount": 21,
+      "status": "stale",
+      "parent": "main"
+    },
+    {
+      "name": "feature/oauth-providers",
+      "owner": "dana",
+      "description": "OAuth login providers",
+      "lastCommit": {
+        "time": "2024-09-15T09:00:00Z",
+        "message": "Google OAuth setup",
+        "author": "dana"
+      },
+      "commitCount": 47,
+      "status": "stale",
+      "parent": "main"
+    },
+    {
+      "name": "perf/lazy-loading",
+      "owner": "eve",
+      "description": "Implement lazy loading",
+      "lastCommit": {
+        "time": "2024-09-10T15:15:00Z",
+        "message": "Route-based splitting",
+        "author": "eve"
+      },
+      "commitCount": 28,
+      "status": "stale",
+      "parent": "main"
+    }
+  ]
+}

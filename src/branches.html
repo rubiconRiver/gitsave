@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Branch Timeline - GitSave</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      overflow-x: auto;
+      user-select: none;
+    }
+    
+    .header {
+      position: sticky;
+      top: 0;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      padding: 15px 20px;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .title {
+      font-size: 20px;
+      font-weight: 600;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .filter-input {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    
+    .timeline-container {
+      padding: 20px;
+      min-width: 1200px;
+    }
+    
+    .timeline-header {
+      display: flex;
+      margin-bottom: 20px;
+      padding-left: 200px;
+      position: relative;
+    }
+    
+    .time-labels {
+      display: flex;
+      width: 1000px;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #8b949e;
+    }
+    
+    .user-section {
+      margin-bottom: 30px;
+    }
+    
+    .user-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+      cursor: pointer;
+      padding: 5px;
+      border-radius: 6px;
+    }
+    
+    .user-header:hover {
+      background: #161b22;
+    }
+    
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      margin-right: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .user-name {
+      font-weight: 500;
+      margin-right: 10px;
+    }
+    
+    .branch-count {
+      font-size: 12px;
+      color: #8b949e;
+    }
+    
+    .branch-row {
+      display: flex;
+      align-items: center;
+      height: 40px;
+      position: relative;
+      margin-left: 42px;
+    }
+    
+    .branch-info {
+      width: 158px;
+      padding-right: 10px;
+      overflow: hidden;
+    }
+    
+    .branch-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: #58a6ff;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .branch-name:hover {
+      text-decoration: underline;
+    }
+    
+    .branch-description {
+      font-size: 11px;
+      color: #8b949e;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .timeline {
+      width: 1000px;
+      height: 30px;
+      position: relative;
+      background: linear-gradient(to right, 
+        transparent 0%, 
+        #161b22 2%, 
+        #161b22 98%, 
+        transparent 100%);
+      border-radius: 4px;
+    }
+    
+    .activity-dot {
+      position: absolute;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.2s;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    
+    .activity-dot:hover {
+      transform: translateY(-50%) scale(1.5);
+      z-index: 10;
+    }
+    
+    .activity-dot.active {
+      background: #3fb950;
+      box-shadow: 0 0 0 2px #0d1117, 0 0 0 4px #3fb95040;
+    }
+    
+    .activity-dot.recent {
+      background: #58a6ff;
+      box-shadow: 0 0 0 2px #0d1117, 0 0 0 4px #58a6ff40;
+    }
+    
+    .activity-dot.stale {
+      background: #8b949e;
+      opacity: 0.5;
+    }
+    
+    .tooltip {
+      position: absolute;
+      background: #1c2128;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 12px;
+      z-index: 1000;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      max-width: 300px;
+    }
+    
+    .tooltip.visible {
+      opacity: 1;
+    }
+    
+    .tooltip-header {
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: #f0f6fc;
+    }
+    
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 2px 0;
+    }
+    
+    .tooltip-label {
+      color: #8b949e;
+    }
+    
+    .tooltip-value {
+      color: #c9d1d9;
+    }
+    
+    .legend {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 15px;
+      font-size: 12px;
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin: 5px 0;
+    }
+    
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    
+    .branch-tree-line {
+      position: absolute;
+      width: 1px;
+      background: #30363d;
+      left: 21px;
+      top: -10px;
+      height: 20px;
+    }
+    
+    .branch-tree-connector {
+      position: absolute;
+      width: 20px;
+      height: 1px;
+      background: #30363d;
+      left: 21px;
+      top: 50%;
+    }
+    
+    .collapse-icon {
+      margin-right: 5px;
+      cursor: pointer;
+      color: #8b949e;
+      transition: transform 0.2s;
+    }
+    
+    .collapsed .collapse-icon {
+      transform: rotate(-90deg);
+    }
+    
+    .collapsed + .branch-children {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">Branch Timeline</div>
+    <div class="controls">
+      <input type="text" class="filter-input" placeholder="Filter branches..." id="filterInput">
+      <button class="filter-input" onclick="window.close()">Close</button>
+    </div>
+  </div>
+  
+  <div class="timeline-container">
+    <div class="timeline-header">
+      <div class="time-labels" id="timeLabels"></div>
+    </div>
+    
+    <div id="branchContainer"></div>
+  </div>
+  
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #3fb950;"></div>
+      <span>Active (< 7 days)</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #58a6ff;"></div>
+      <span>Recent (7-30 days)</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #8b949e; opacity: 0.5;"></div>
+      <span>Stale (> 30 days)</span>
+    </div>
+  </div>
+  
+  <div class="tooltip" id="tooltip"></div>
+  
+  <script>
+    const { ipcRenderer } = require('electron');
+    
+    // Load branch data
+    let branchData = null;
+    const fs = require('fs');
+    const path = require('path');
+    
+    try {
+      const dataPath = path.join(__dirname, '..', 'intentional.dev', 'branch-history.json');
+      branchData = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+    } catch (error) {
+      console.error('Failed to load branch data:', error);
+    }
+    
+    // Time calculations
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const timelineWidth = 1000;
+    
+    function getTimelinePosition(date) {
+      const time = new Date(date).getTime();
+      const totalTime = now.getTime() - thirtyDaysAgo.getTime();
+      const elapsed = time - thirtyDaysAgo.getTime();
+      return Math.max(0, Math.min(timelineWidth, (elapsed / totalTime) * timelineWidth));
+    }
+    
+    function getDotSize(commitCount) {
+      if (commitCount > 100) return 12;
+      if (commitCount > 50) return 10;
+      if (commitCount > 20) return 8;
+      return 6;
+    }
+    
+    function getDotClass(lastCommitTime) {
+      const daysSince = (now - new Date(lastCommitTime)) / (1000 * 60 * 60 * 24);
+      if (daysSince < 7) return 'active';
+      if (daysSince < 30) return 'recent';
+      return 'stale';
+    }
+    
+    function formatDate(date) {
+      return new Date(date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+    
+    function getInitials(name) {
+      return name.split(' ').map(n => n[0]).join('').toUpperCase();
+    }
+    
+    // Generate time labels
+    const timeLabels = document.getElementById('timeLabels');
+    for (let i = 0; i <= 6; i++) {
+      const label = document.createElement('div');
+      const date = new Date(now.getTime() - i * 5 * 24 * 60 * 60 * 1000);
+      label.textContent = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      timeLabels.appendChild(label);
+    }
+    
+    // Group branches by user
+    const branchesByUser = {};
+    const userBranches = {};
+    
+    branchData.branches.forEach(branch => {
+      const owner = branch.owner || 'main';
+      if (!branchesByUser[owner]) {
+        branchesByUser[owner] = [];
+      }
+      branchesByUser[owner].push(branch);
+      
+      // Track parent-child relationships
+      if (branch.children) {
+        branch.children.forEach(childName => {
+          const child = branchData.branches.find(b => b.name === childName);
+          if (child) {
+            child._parent = branch;
+          }
+        });
+      }
+    });
+    
+    // Render branches
+    const container = document.getElementById('branchContainer');
+    
+    Object.entries(branchesByUser).forEach(([userId, branches]) => {
+      const user = userId === 'main' ? null : branchData.users[userId];
+      
+      const section = document.createElement('div');
+      section.className = 'user-section';
+      
+      const header = document.createElement('div');
+      header.className = 'user-header';
+      
+      const avatar = document.createElement('div');
+      avatar.className = 'user-avatar';
+      avatar.style.background = user ? user.color : '#8b949e';
+      avatar.textContent = user ? getInitials(user.name) : 'M';
+      
+      const name = document.createElement('div');
+      name.className = 'user-name';
+      name.textContent = user ? user.name : 'Main Branch';
+      
+      const count = document.createElement('div');
+      count.className = 'branch-count';
+      count.textContent = `${branches.length} branch${branches.length > 1 ? 'es' : ''}`;
+      
+      header.appendChild(avatar);
+      header.appendChild(name);
+      header.appendChild(count);
+      section.appendChild(header);
+      
+      // Render branches
+      branches.forEach(branch => {
+        // Skip if this is a child branch (will be rendered under parent)
+        if (branch._parent) return;
+        
+        renderBranch(branch, section, 0);
+      });
+      
+      container.appendChild(section);
+    });
+    
+    function renderBranch(branch, container, depth) {
+      const row = document.createElement('div');
+      row.className = 'branch-row';
+      row.style.marginLeft = `${42 + depth * 20}px`;
+      
+      if (depth > 0) {
+        const connector = document.createElement('div');
+        connector.className = 'branch-tree-connector';
+        row.appendChild(connector);
+      }
+      
+      const info = document.createElement('div');
+      info.className = 'branch-info';
+      
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'branch-name';
+      
+      if (branch.children && branch.children.length > 0) {
+        const collapseIcon = document.createElement('span');
+        collapseIcon.className = 'collapse-icon';
+        collapseIcon.textContent = '▼';
+        collapseIcon.onclick = (e) => {
+          e.stopPropagation();
+          row.classList.toggle('collapsed');
+        };
+        nameDiv.appendChild(collapseIcon);
+      }
+      
+      const nameText = document.createElement('span');
+      nameText.textContent = branch.name;
+      nameDiv.appendChild(nameText);
+      
+      const desc = document.createElement('div');
+      desc.className = 'branch-description';
+      desc.textContent = branch.description;
+      
+      info.appendChild(nameDiv);
+      info.appendChild(desc);
+      row.appendChild(info);
+      
+      const timeline = document.createElement('div');
+      timeline.className = 'timeline';
+      
+      const position = getTimelinePosition(branch.lastCommit.time);
+      const dot = document.createElement('div');
+      dot.className = `activity-dot ${getDotClass(branch.lastCommit.time)}`;
+      dot.style.left = `${position}px`;
+      dot.style.width = `${getDotSize(branch.commitCount)}px`;
+      dot.style.height = `${getDotSize(branch.commitCount)}px`;
+      
+      // Tooltip
+      dot.addEventListener('mouseenter', (e) => {
+        const tooltip = document.getElementById('tooltip');
+        tooltip.innerHTML = `
+          <div class="tooltip-header">${branch.name}</div>
+          <div class="tooltip-row">
+            <span class="tooltip-label">Last commit:</span>
+            <span class="tooltip-value">${formatDate(branch.lastCommit.time)}</span>
+          </div>
+          <div class="tooltip-row">
+            <span class="tooltip-label">Message:</span>
+            <span class="tooltip-value">${branch.lastCommit.message}</span>
+          </div>
+          <div class="tooltip-row">
+            <span class="tooltip-label">Author:</span>
+            <span class="tooltip-value">${branchData.users[branch.lastCommit.author]?.name || branch.lastCommit.author}</span>
+          </div>
+          <div class="tooltip-row">
+            <span class="tooltip-label">Total commits:</span>
+            <span class="tooltip-value">${branch.commitCount}</span>
+          </div>
+        `;
+        tooltip.style.left = `${e.pageX + 10}px`;
+        tooltip.style.top = `${e.pageY + 10}px`;
+        tooltip.classList.add('visible');
+      });
+      
+      dot.addEventListener('mouseleave', () => {
+        const tooltip = document.getElementById('tooltip');
+        tooltip.classList.remove('visible');
+      });
+      
+      timeline.appendChild(dot);
+      row.appendChild(timeline);
+      
+      container.appendChild(row);
+      
+      // Render children
+      if (branch.children && branch.children.length > 0) {
+        const childContainer = document.createElement('div');
+        childContainer.className = 'branch-children';
+        
+        branch.children.forEach(childName => {
+          const child = branchData.branches.find(b => b.name === childName);
+          if (child) {
+            renderBranch(child, childContainer, depth + 1);
+          }
+        });
+        
+        container.appendChild(childContainer);
+      }
+    }
+    
+    // Filter functionality
+    document.getElementById('filterInput').addEventListener('input', (e) => {
+      const filter = e.target.value.toLowerCase();
+      const rows = document.querySelectorAll('.branch-row');
+      
+      rows.forEach(row => {
+        const name = row.querySelector('.branch-name').textContent.toLowerCase();
+        const desc = row.querySelector('.branch-description').textContent.toLowerCase();
+        
+        if (name.includes(filter) || desc.includes(filter)) {
+          row.style.display = 'flex';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

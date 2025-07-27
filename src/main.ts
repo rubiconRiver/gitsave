@@ -1,8 +1,9 @@
 import { menubar } from 'menubar';
-import { app, BrowserWindow, ipcMain, Menu, MenuItem } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, MenuItem, dialog } from 'electron';
 import * as path from 'path';
 import simpleGit from 'simple-git';
 import Store from 'electron-store';
+import { LicenseManager } from './license';
 
 const store = new Store();
 const mb = menubar({
@@ -29,8 +30,38 @@ let currentRepo = {
   branch: 'main'
 };
 
-mb.on('ready', () => {
+mb.on('ready', async () => {
   console.log('GitSave is ready!');
+  
+  // Check license
+  if (!LicenseManager.isLicensed()) {
+    const result = await dialog.showMessageBox({
+      type: 'info',
+      title: 'GitSave - License Required',
+      message: 'Please enter your license key to activate GitSave',
+      buttons: ['Enter License', 'Buy License', 'Dev Mode', 'Quit']
+    });
+    
+    if (result.response === 0) {
+      // Show license dialog
+      mb.window?.loadFile(path.join(__dirname, '..', 'src', 'license.html'));
+    } else if (result.response === 1) {
+      // Open purchase page
+      require('electron').shell.openExternal('https://gitsave.app/buy');
+      app.quit();
+    } else if (result.response === 2) {
+      // Dev mode - skip license check
+      console.log('Running in dev mode - license bypassed');
+      // Continue normal startup
+    } else {
+      app.quit();
+      return;
+    }
+    
+    if (result.response !== 2) {
+      return;
+    }
+  }
   
   // Update tray title periodically
   updateTrayTitle();
@@ -134,6 +165,34 @@ ipcMain.handle('repo:select', async () => {
   }
   
   return { canceled: true };
+});
+
+// License handlers
+ipcMain.handle('license:activate', async (_, email: string, key: string) => {
+  const success = await LicenseManager.validateLicense(key, email);
+  if (success) {
+    // Reload main window
+    mb.window?.loadFile(path.join(__dirname, '..', 'src', 'index.html'));
+    return { success: true };
+  }
+  return { success: false, error: 'Invalid license key or activation failed' };
+});
+
+ipcMain.handle('license:openPurchase', () => {
+  require('electron').shell.openExternal('https://gitsave.app/buy');
+});
+
+ipcMain.handle('branches:open', () => {
+  const branchWindow = new BrowserWindow({
+    width: 1400,
+    height: 800,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
+  });
+  
+  branchWindow.loadFile(path.join(__dirname, '..', 'src', 'branch-graph.html'));
 });
 
 app.on('window-all-closed', () => {

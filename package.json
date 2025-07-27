@@ -23,6 +23,7 @@
   "dependencies": {
     "electron-store": "^8.1.0",
     "menubar": "^9.5.1",
+    "node-machine-id": "^1.1.12",
     "simple-git": "^3.28.0"
   }
 }

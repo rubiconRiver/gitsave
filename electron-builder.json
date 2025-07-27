@@ -1,0 +1,41 @@
+{
+  "appId": "com.gitsave.app",
+  "productName": "GitSave",
+  "directories": {
+    "output": "dist"
+  },
+  "mac": {
+    "category": "public.app-category.developer-tools",
+    "icon": "assets/icon.icns",
+    "hardenedRuntime": true,
+    "gatekeeperAssess": false,
+    "entitlements": "build/entitlements.mac.plist",
+    "entitlementsInherit": "build/entitlements.mac.plist",
+    "notarize": {
+      "teamId": "YOUR_TEAM_ID"
+    }
+  },
+  "dmg": {
+    "contents": [
+      {
+        "x": 130,
+        "y": 220
+      },
+      {
+        "x": 410,
+        "y": 220,
+        "type": "link",
+        "path": "/Applications"
+      }
+    ]
+  },
+  "win": {
+    "target": "nsis",
+    "icon": "assets/icon.ico"
+  },
+  "publish": {
+    "provider": "github",
+    "owner": "your-username",
+    "repo": "gitsave"
+  }
+}

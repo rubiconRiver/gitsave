@@ -21,6 +21,7 @@ updateRepoInfo();
 saveButton.addEventListener('click', handleSave);
 syncButton.addEventListener('click', handleSync);
 pushButton.addEventListener('click', handlePush);
+branchButton.addEventListener('click', handleBranch);
 selectRepoButton.addEventListener('click', handleSelectRepo);
 
 // Keyboard shortcut for save
@@ -116,6 +117,14 @@ async function handlePush() {
   } finally {
     isProcessing = false;
     pushButton.disabled = false;
+  }
+}
+
+async function handleBranch() {
+  try {
+    await window.gitAPI.openBranches();
+  } catch (error) {
+    showError('Failed to open branches view: ' + error.message);
   }
 }
 

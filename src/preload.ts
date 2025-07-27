@@ -7,4 +7,10 @@ contextBridge.exposeInMainWorld('gitAPI', {
   status: () => ipcRenderer.invoke('git:status'),
   getRepoInfo: () => ipcRenderer.invoke('repo:info'),
   selectRepo: () => ipcRenderer.invoke('repo:select'),
+  openBranches: () => ipcRenderer.invoke('branches:open'),
+});
+
+contextBridge.exposeInMainWorld('licenseAPI', {
+  activate: (email: string, key: string) => ipcRenderer.invoke('license:activate', email, key),
+  openPurchasePage: () => ipcRenderer.invoke('license:openPurchase'),
 });
