@@ -790,7 +790,7 @@
     }
     
     // Calculate x position based on time with variable spacing
-    function calculateTimePosition(timestamp, now, oldestTimestamp) {
+    function calculateTimePosition(timestamp, now) {
       const msPerHour = 60 * 60 * 1000;
       const msPerDay = 24 * msPerHour;
       const msPerWeek = 7 * msPerDay;
@@ -804,20 +804,18 @@
       } else if (age < msPerWeek) {
         // Last week - medium resolution
         const daysAgo = (age - msPerDay) / msPerDay;
-        x = -24 * PIXELS_PER_HOUR - daysAgo * PIXELS_PER_DAY;
+        x = 24 * PIXELS_PER_HOUR + daysAgo * PIXELS_PER_DAY;
       } else if (age < 30 * msPerDay) {
         // Last month - lower resolution
         const weeksAgo = (age - msPerWeek) / msPerWeek;
-        x = -24 * PIXELS_PER_HOUR - 6 * PIXELS_PER_DAY - weeksAgo * PIXELS_PER_WEEK;
+        x = 24 * PIXELS_PER_HOUR + 6 * PIXELS_PER_DAY + weeksAgo * PIXELS_PER_WEEK;
       } else {
         // Older than a month - compressed
         const monthsAgo = (age - 30 * msPerDay) / (30 * msPerDay);
-        x = -24 * PIXELS_PER_HOUR - 6 * PIXELS_PER_DAY - 3 * PIXELS_PER_WEEK - monthsAgo * PIXELS_PER_MONTH;
+        x = 24 * PIXELS_PER_HOUR + 6 * PIXELS_PER_DAY + 3 * PIXELS_PER_WEEK + monthsAgo * PIXELS_PER_MONTH;
       }
       
-      // Shift everything to start at TIME_AXIS_START and make it positive
-      const maxX = calculateTimePosition(oldestTimestamp, now, oldestTimestamp);
-      return TIME_AXIS_START + (x - maxX);
+      return TIME_AXIS_START + x;
     }
     
     function parseGitDataToCytoscape() {
@@ -878,10 +876,8 @@
           const branches = branchTips.get(commit.hash) || [];
           const isBranchTip = branches.length > 0;
           
-          // Calculate position
-          const x = timeRange > 0 ? 
-            TIME_AXIS_START + ((timestamp - minTime) / timeRange) * TIME_AXIS_WIDTH : 
-            TIME_AXIS_START;
+          // Calculate position using responsive time spacing
+          const x = calculateTimePosition(timestamp, now);
           const y = BASE_Y_POSITION + (authorGroups[commit.author_name] || 0);
           
           // Determine node class
@@ -962,6 +958,31 @@
         
         console.log('Created', nodes.length, 'nodes and', edges.length, 'edges');
         console.log(`Commits: ${intentionalCount} intentional, ${saveCount} saves`);
+        
+        // Add time markers
+        const timeMarkers = [
+          { label: 'Today', time: now - 0, class: 'time-marker-today' },
+          { label: 'Yesterday', time: now - 24 * 60 * 60 * 1000, class: 'time-marker' },
+          { label: '1 week ago', time: now - 7 * 24 * 60 * 60 * 1000, class: 'time-marker' },
+          { label: '1 month ago', time: now - 30 * 24 * 60 * 60 * 1000, class: 'time-marker' }
+        ];
+        
+        timeMarkers.forEach((marker, index) => {
+          if (marker.time >= minTime) {
+            const x = calculateTimePosition(marker.time, now);
+            nodes.push({
+              data: {
+                id: `time-marker-${index}`,
+                label: marker.label,
+                isTimeMarker: true
+              },
+              position: { x, y: 50 },
+              classes: marker.class,
+              selectable: false,
+              grabbable: false
+            });
+          }
+        });
       }
       
       return { nodes, edges };
@@ -1090,6 +1111,37 @@
               'target-arrow-shape': 'none'
             }
           },
+          // Time marker style
+          {
+            selector: 'node.time-marker',
+            style: {
+              'background-color': 'transparent',
+              'label': 'data(label)',
+              'text-valign': 'top',
+              'text-halign': 'center',
+              'font-size': '9px',
+              'color': '#8b949e',
+              'width': 1,
+              'height': 1,
+              'shape': 'rectangle'
+            }
+          },
+          // Today marker style
+          {
+            selector: 'node.time-marker-today',
+            style: {
+              'background-color': 'transparent',
+              'label': 'data(label)',
+              'text-valign': 'top',
+              'text-halign': 'center',
+              'font-size': '10px',
+              'font-weight': 'bold',
+              'color': '#f85149',
+              'width': 1,
+              'height': 1,
+              'shape': 'rectangle'
+            }
+          },
           {
             selector: 'node:selected',
             style: {
@@ -1113,8 +1165,8 @@
         const node = evt.target;
         const data = node.data();
         
-        if (data.isBranchLabel) {
-          // Don't change branch labels on hover
+        if (data.isBranchLabel || data.isTimeMarker) {
+          // Don't change branch labels or time markers on hover
           return;
         } else if (data.isSave) {
           node.style({
@@ -1146,8 +1198,8 @@
         const node = evt.target;
         const data = node.data();
         
-        if (data.isBranchLabel) {
-          // Don't change branch labels
+        if (data.isBranchLabel || data.isTimeMarker) {
+          // Don't change branch labels or time markers
           return;
         } else if (data.isSave) {
           node.style({
