@@ -237,6 +237,105 @@
     .delete-btn:hover {
       background: #b62324;
     }
+    
+    /* Modal styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .modal.show {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: #161b22;
+      border-radius: 8px;
+      padding: 24px;
+      min-width: 400px;
+      border: 1px solid #30363d;
+    }
+    
+    .modal-header {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #c9d1d9;
+    }
+    
+    .form-group {
+      margin-bottom: 16px;
+    }
+    
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: #8b949e;
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: 8px 12px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #c9d1d9;
+      font-size: 14px;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: #58a6ff;
+    }
+    
+    .form-hint {
+      font-size: 12px;
+      color: #8b949e;
+      margin-top: 4px;
+    }
+    
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 24px;
+    }
+    
+    .modal-btn {
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      border: 1px solid #30363d;
+    }
+    
+    .modal-btn-cancel {
+      background: #21262d;
+      color: #c9d1d9;
+    }
+    
+    .modal-btn-cancel:hover {
+      background: #30363d;
+    }
+    
+    .modal-btn-primary {
+      background: #238636;
+      color: white;
+      border-color: #238636;
+    }
+    
+    .modal-btn-primary:hover {
+      background: #2ea043;
+    }
   </style>
 </head>
 <body>
@@ -266,6 +365,24 @@
   
   <div class="main-content">
     <canvas id="canvas"></canvas>
+  </div>
+  
+  <!-- New Branch Modal -->
+  <div id="newBranchModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">Create New Branch</div>
+      
+      <div class="form-group">
+        <label class="form-label">Branch name</label>
+        <input type="text" id="branchNameInput" class="form-input" placeholder="feature/my-new-feature" autofocus>
+        <div class="form-hint">Branch will be created from: <strong id="sourceBranch"></strong></div>
+      </div>
+      
+      <div class="modal-actions">
+        <button class="modal-btn modal-btn-cancel" id="cancelBtn">Cancel</button>
+        <button class="modal-btn modal-btn-primary" id="createBtn">Create Branch</button>
+      </div>
+    </div>
   </div>
   
   <script>
@@ -434,30 +551,54 @@
       }
     }
     
+    // Show/hide modal
+    function showNewBranchModal() {
+      const modal = document.getElementById('newBranchModal');
+      const input = document.getElementById('branchNameInput');
+      const sourceBranch = document.getElementById('sourceBranch');
+      
+      // Set source branch
+      sourceBranch.textContent = currentBranch;
+      
+      // Clear and focus input
+      input.value = '';
+      modal.classList.add('show');
+      
+      // Focus after a tiny delay to ensure modal is visible
+      setTimeout(() => input.focus(), 50);
+    }
+    
+    function hideNewBranchModal() {
+      const modal = document.getElementById('newBranchModal');
+      modal.classList.remove('show');
+    }
+    
     // Create new branch
     async function createBranch() {
-      console.log('Create branch clicked');
-      const name = prompt('Enter new branch name:');
-      console.log('Branch name:', name);
+      showNewBranchModal();
+    }
+    
+    async function performCreateBranch() {
+      const input = document.getElementById('branchNameInput');
+      const name = input.value.trim();
+      
       if (!name) {
-        console.log('No branch name provided');
+        input.focus();
         return;
       }
       
       try {
-        console.log('Creating branch:', name);
         const result = await window.branchAPI.createBranch(name);
-        console.log('Create branch result:', result);
         if (result.success) {
           currentBranch = name;
           document.getElementById('currentBranchName').textContent = currentBranch;
+          hideNewBranchModal();
           
           // Refresh branch list
           await refreshBranches();
         } else {
           throw new Error(result.error);
         }
-        
       } catch (error) {
         console.error('Failed to create branch:', error);
         alert('Failed to create branch: ' + error.message);
@@ -537,6 +678,26 @@
     document.getElementById('newBranchBtn').addEventListener('click', createBranch);
     document.getElementById('refreshBtn').addEventListener('click', refreshBranches);
     document.getElementById('fetchBtn').addEventListener('click', fetchRemote);
+    
+    // Modal event listeners
+    document.getElementById('createBtn').addEventListener('click', performCreateBranch);
+    document.getElementById('cancelBtn').addEventListener('click', hideNewBranchModal);
+    
+    // Enter key in branch name input
+    document.getElementById('branchNameInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        performCreateBranch();
+      } else if (e.key === 'Escape') {
+        hideNewBranchModal();
+      }
+    });
+    
+    // Click outside modal to close
+    document.getElementById('newBranchModal').addEventListener('click', (e) => {
+      if (e.target.id === 'newBranchModal') {
+        hideNewBranchModal();
+      }
+    });
     
     // Helper functions
     function getColorForAuthor(author) {
