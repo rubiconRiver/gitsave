@@ -202,6 +202,94 @@
       line-height: 1.5;
       white-space: pre-wrap;
     }
+    
+    /* Branch ownership modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .modal.show {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .modal-header {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #d73a49;
+    }
+    
+    .modal-body {
+      margin-bottom: 20px;
+      line-height: 1.5;
+      color: #24292e;
+    }
+    
+    .modal-branch-info {
+      background: #f6f8fa;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin: 10px 0;
+      font-family: monospace;
+      font-size: 13px;
+    }
+    
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    
+    .modal-btn {
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      border: 1px solid #d1d5da;
+      background: #fafbfc;
+    }
+    
+    .modal-btn:hover {
+      background: #f3f4f6;
+    }
+    
+    .modal-btn-primary {
+      background: #2ea44f;
+      color: white;
+      border-color: #2ea44f;
+    }
+    
+    .modal-btn-primary:hover {
+      background: #2c974b;
+    }
+    
+    .modal-btn-secondary {
+      background: #0969da;
+      color: white;
+      border-color: #0969da;
+    }
+    
+    .modal-btn-secondary:hover {
+      background: #0860ca;
+    }
   </style>
 </head>
 <body>
@@ -235,6 +323,23 @@
     <div class="footer">
       <button class="footer-button" id="selectRepoButton">Change Project</button>
       <button class="footer-button" id="quitButton">Quit GitSave</button>
+    </div>
+  </div>
+  
+  <!-- Branch ownership modal -->
+  <div id="branchOwnershipModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">⚠️ This isn't your branch</div>
+      <div class="modal-body">
+        <div id="ownershipMessage"></div>
+        <div class="modal-branch-info" id="branchInfo"></div>
+        <p>Would you like to:</p>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn" id="cancelSaveBtn">Cancel</button>
+        <button class="modal-btn modal-btn-secondary" id="createMyBranchBtn">Create My Branch</button>
+        <button class="modal-btn modal-btn-primary" id="saveAnywayBtn">Save Anyway</button>
+      </div>
     </div>
   </div>
   

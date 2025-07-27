@@ -184,6 +184,54 @@ ipcMain.handle('git:status', async () => {
   }
 });
 
+ipcMain.handle('git:getBranchOwner', async (_, branchName: string) => {
+  if (!currentRepo.path) return { error: 'No repository selected' };
+  
+  try {
+    const git = simpleGit(currentRepo.path);
+    
+    // Get the merge base with main to find where branch diverged
+    const mergeBase = await git.raw(['merge-base', 'main', branchName]);
+    const baseCommit = mergeBase.trim();
+    
+    // Get first commit after the merge base on this branch
+    const branchCommits = await git.raw(['rev-list', `${baseCommit}..${branchName}`, '--reverse']);
+    const firstUniqueCommit = branchCommits.split('\n')[0]?.trim();
+    
+    if (!firstUniqueCommit) {
+      // Branch has no unique commits, check the branch creation
+      const reflog = await git.raw(['reflog', 'show', branchName, '--format=%H %an <%ae>']);
+      const lastLine = reflog.split('\n').filter(line => line.trim()).pop();
+      if (lastLine) {
+        const match = lastLine.match(/^\w+ (.+)$/);
+        if (match) {
+          const [, authorInfo] = match;
+          const authorMatch = authorInfo.match(/^(.+) <(.+)>$/);
+          if (authorMatch) {
+            return {
+              owner: authorMatch[1],
+              email: authorMatch[2]
+            };
+          }
+        }
+      }
+    } else {
+      // Get author of first unique commit
+      const commitInfo = await git.show([firstUniqueCommit, '--format=%an%n%ae', '--no-patch']);
+      const [author, email] = commitInfo.split('\n');
+      return {
+        owner: author,
+        email: email
+      };
+    }
+    
+    return { owner: null, email: null };
+  } catch (error: any) {
+    console.error('Failed to get branch owner:', error);
+    return { owner: null, email: null };
+  }
+});
+
 ipcMain.handle('git:checkAuth', async () => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
@@ -229,7 +277,7 @@ ipcMain.handle('git:checkAuth', async () => {
   }
 });
 
-ipcMain.handle('git:save', async (_, message: string) => {
+ipcMain.handle('git:save', async (_, message: string, forceCommit?: boolean) => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
   try {
@@ -239,6 +287,55 @@ ipcMain.handle('git:save', async (_, message: string) => {
     const status = await git.status();
     if (status.files.length === 0) {
       return { error: 'No changes to save' };
+    }
+    
+    // Check branch ownership unless forced
+    if (!forceCommit && currentRepo.branch !== 'main') {
+      // Get current user
+      const [userName, userEmail] = await Promise.all([
+        git.getConfig('user.name'),
+        git.getConfig('user.email')
+      ]);
+      
+      const currentUser = userName.value;
+      const currentEmail = userEmail.value;
+      
+      // Get branch owner
+      let branchOwnerResult;
+      try {
+        const git2 = simpleGit(currentRepo.path);
+        // Get the merge base with main to find where branch diverged
+        const mergeBase = await git2.raw(['merge-base', 'main', currentRepo.branch]);
+        const baseCommit = mergeBase.trim();
+        
+        // Get first commit after the merge base on this branch
+        const branchCommits = await git2.raw(['rev-list', `${baseCommit}..${currentRepo.branch}`, '--reverse']);
+        const firstUniqueCommit = branchCommits.split('\n')[0]?.trim();
+        
+        if (firstUniqueCommit) {
+          // Get author of first unique commit
+          const commitInfo = await git2.show([firstUniqueCommit, '--format=%an%n%ae', '--no-patch']);
+          const [author, email] = commitInfo.split('\n');
+          branchOwnerResult = { owner: author, email: email };
+        } else {
+          branchOwnerResult = { owner: null, email: null };
+        }
+      } catch (err) {
+        branchOwnerResult = { owner: null, email: null };
+      }
+      
+      if (branchOwnerResult.owner && branchOwnerResult.email) {
+        // Check if current user owns the branch
+        if (branchOwnerResult.email !== currentEmail) {
+          return {
+            needsConfirmation: true,
+            branchOwner: branchOwnerResult.owner,
+            branchOwnerEmail: branchOwnerResult.email,
+            currentBranch: currentRepo.branch,
+            message: `This branch belongs to ${branchOwnerResult.owner}. You should create your own branch before making changes.`
+          };
+        }
+      }
     }
     
     await git.add('.');

@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('gitAPI', {
-  save: (message: string) => ipcRenderer.invoke('git:save', message),
+  save: (message: string, forceCommit?: boolean) => ipcRenderer.invoke('git:save', message, forceCommit),
   sync: () => ipcRenderer.invoke('git:sync'),
   push: () => ipcRenderer.invoke('git:push'),
   status: () => ipcRenderer.invoke('git:status'),

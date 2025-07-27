@@ -14,6 +14,7 @@ const feedback = document.getElementById('feedback');
 // State
 let isProcessing = false;
 let hasChanges = false;
+let pendingCommitMessage = '';
 
 // Initialize
 updateRepoInfo();
@@ -83,7 +84,7 @@ async function updateRepoInfo() {
   }
 }
 
-async function handleSave() {
+async function handleSave(forceCommit = false) {
   if (isProcessing || !hasChanges) return;
   
   isProcessing = true;
@@ -92,7 +93,16 @@ async function handleSave() {
   
   try {
     const message = messageInput.value.trim() || 'WIP';
-    const result = await window.gitAPI.save(message);
+    pendingCommitMessage = message;
+    const result = await window.gitAPI.save(message, forceCommit);
+    
+    if (result.needsConfirmation) {
+      // Show branch ownership modal
+      showBranchOwnershipModal(result);
+      isProcessing = false;
+      saveButton.disabled = false;
+      return;
+    }
     
     if (result.success) {
       if (result.pushed) {
@@ -264,3 +274,46 @@ async function checkAuthentication() {
     console.error('Failed to check authentication:', error);
   }
 }
+
+// Branch ownership modal functions
+function showBranchOwnershipModal(data) {
+  const modal = document.getElementById('branchOwnershipModal');
+  const message = document.getElementById('ownershipMessage');
+  const branchInfo = document.getElementById('branchInfo');
+  
+  message.textContent = data.message;
+  branchInfo.textContent = `Branch: ${data.currentBranch} (owned by ${data.branchOwner})`;
+  
+  modal.classList.add('show');
+}
+
+function hideBranchOwnershipModal() {
+  document.getElementById('branchOwnershipModal').classList.remove('show');
+}
+
+// Modal button handlers
+document.getElementById('cancelSaveBtn').addEventListener('click', () => {
+  hideBranchOwnershipModal();
+});
+
+document.getElementById('saveAnywayBtn').addEventListener('click', async () => {
+  hideBranchOwnershipModal();
+  // Force save
+  await handleSave(true);
+});
+
+document.getElementById('createMyBranchBtn').addEventListener('click', async () => {
+  hideBranchOwnershipModal();
+  
+  // Generate a branch name based on current user
+  const authInfo = await window.gitAPI.checkAuth();
+  const userName = authInfo.userName?.toLowerCase().replace(/\s+/g, '-') || 'my';
+  const baseBranch = branchName.textContent;
+  const timestamp = new Date().toISOString().split('T')[0];
+  const newBranchName = `${userName}/${baseBranch}-${timestamp}`;
+  
+  // Open branch manager with suggestion
+  await window.gitAPI.openBranches();
+  
+  // TODO: Pass the suggested branch name to the branch manager
+});
