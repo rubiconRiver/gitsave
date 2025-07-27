@@ -90,6 +90,18 @@ function updateTrayTitle() {
   }
 }
 
+// Central function to handle branch changes
+function handleBranchChange(newBranch: string) {
+  currentRepo.branch = newBranch;
+  store.set('lastRepoBranch', newBranch);
+  updateTrayTitle();
+  
+  // Notify the main window about branch change
+  if (mb.window) {
+    mb.window.webContents.send('branch-changed', currentRepo);
+  }
+}
+
 async function updateGitInfo() {
   if (!currentRepo.path) return;
   
@@ -102,13 +114,7 @@ async function updateGitInfo() {
     
     // Check for branch changes
     if (branchInfo.current !== currentRepo.branch) {
-      currentRepo.branch = branchInfo.current;
-      store.set('lastRepoBranch', currentRepo.branch);
-      
-      // Notify the renderer window about branch change
-      if (mb.window) {
-        mb.window.webContents.send('branch-changed', currentRepo);
-      }
+      handleBranchChange(branchInfo.current);
     }
     
     // Send file change status to renderer
@@ -138,14 +144,13 @@ async function loadRepository(repoPath: string) {
       currentRepo.path = repoPath;
       currentRepo.name = path.basename(repoPath);
       const branch = await git.branchLocal();
-      currentRepo.branch = branch.current;
       
       // Update persistent storage
       store.set('lastRepoPath', repoPath);
       store.set('lastRepoName', currentRepo.name);
-      store.set('lastRepoBranch', currentRepo.branch);
       
-      updateTrayTitle();
+      // Use handleBranchChange to set branch and notify
+      handleBranchChange(branch.current);
       
       // Notify renderer if window is open
       if (mb.window) {
@@ -463,14 +468,14 @@ ipcMain.handle('repo:select', async () => {
         currentRepo.path = repoPath;
         currentRepo.name = path.basename(repoPath);
         const branch = await git.branchLocal();
-        currentRepo.branch = branch.current;
         
         // Save to persistent storage
         store.set('lastRepoPath', repoPath);
         store.set('lastRepoName', currentRepo.name);
-        store.set('lastRepoBranch', currentRepo.branch);
         
-        updateTrayTitle();
+        // Use handleBranchChange to set branch and notify
+        handleBranchChange(branch.current);
+        
         return { success: true, repo: currentRepo };
       } else {
         return { error: 'Selected directory is not a Git repository' };
@@ -590,8 +595,7 @@ ipcMain.handle('git:createBranch', async (_, branchName: string) => {
   try {
     const git = simpleGit(currentRepo.path);
     await git.checkoutBranch(branchName, currentRepo.branch);
-    currentRepo.branch = branchName;
-    store.set('lastRepoBranch', branchName);
+    handleBranchChange(branchName);
     return { success: true, branch: branchName };
   } catch (error: any) {
     return { error: error.message || 'Failed to create branch' };
@@ -604,8 +608,7 @@ ipcMain.handle('git:switchBranch', async (_, branchName: string) => {
   try {
     const git = simpleGit(currentRepo.path);
     await git.checkout(branchName);
-    currentRepo.branch = branchName;
-    store.set('lastRepoBranch', branchName);
+    handleBranchChange(branchName);
     return { success: true, branch: branchName };
   } catch (error: any) {
     return { error: error.message || 'Failed to switch branch' };

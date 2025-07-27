@@ -15,6 +15,8 @@ const feedback = document.getElementById('feedback');
 let isProcessing = false;
 let hasChanges = false;
 let pendingCommitMessage = '';
+let currentBranch = '';
+let isMyBranch = true;
 
 // Initialize
 updateRepoInfo();
@@ -24,6 +26,8 @@ checkAuthentication();
 window.electronAPI.onBranchChanged((repo) => {
   projectName.textContent = repo.name;
   branchName.textContent = repo.branch;
+  currentBranch = repo.branch;
+  checkBranchOwnership();
 });
 
 // Listen for git status changes
@@ -32,11 +36,18 @@ window.electronAPI.onGitStatusChanged((statusInfo) => {
   
   if (hasChanges) {
     saveButton.disabled = false;
-    saveButton.textContent = `💾 Save Changes (${statusInfo.filesChanged} files)`;
+    if (isMyBranch) {
+      saveButton.textContent = `💾 Save Changes (${statusInfo.filesChanged} files)`;
+      saveButton.classList.remove('not-my-branch');
+    } else {
+      saveButton.textContent = `Save to ${currentBranch} (${statusInfo.filesChanged} files)`;
+      saveButton.classList.add('not-my-branch');
+    }
     status.textContent = `${statusInfo.filesChanged} file${statusInfo.filesChanged !== 1 ? 's' : ''} changed`;
   } else {
     saveButton.disabled = true;
     saveButton.textContent = '💾 No changes to save';
+    saveButton.classList.remove('not-my-branch');
     status.textContent = 'No changes since last save';
   }
 });
@@ -45,10 +56,12 @@ window.electronAPI.onGitStatusChanged((statusInfo) => {
 window.electronAPI.onRepoLoaded((repo) => {
   projectName.textContent = repo.name;
   branchName.textContent = repo.branch;
+  currentBranch = repo.branch;
   saveButton.disabled = false;
   syncButton.disabled = false;
   pushButton.disabled = false;
   checkAuthentication();
+  checkBranchOwnership();
 });
 
 // Event Listeners
@@ -73,11 +86,13 @@ async function updateRepoInfo() {
     const repo = await window.gitAPI.getRepoInfo();
     projectName.textContent = repo.name;
     branchName.textContent = repo.branch;
+    currentBranch = repo.branch;
     
     if (repo.path) {
       saveButton.disabled = false;
       syncButton.disabled = false;
       pushButton.disabled = false;
+      checkBranchOwnership();
     }
   } catch (error) {
     showError('Failed to get repository info');
@@ -317,3 +332,57 @@ document.getElementById('createMyBranchBtn').addEventListener('click', async () 
   
   // TODO: Pass the suggested branch name to the branch manager
 });
+
+// Check branch ownership
+async function checkBranchOwnership() {
+  const branchOwnerEl = document.getElementById('branchOwner');
+  
+  if (!currentBranch || currentBranch === 'main') {
+    branchOwnerEl.classList.remove('show');
+    isMyBranch = true;
+    return;
+  }
+  
+  try {
+    // Get current user
+    const authInfo = await window.gitAPI.checkAuth();
+    const currentUserEmail = authInfo.userEmail;
+    
+    // Get branch owner
+    const ownerInfo = await window.gitAPI.getBranchOwner(currentBranch);
+    
+    if (ownerInfo.owner && ownerInfo.email) {
+      if (ownerInfo.email === currentUserEmail) {
+        // This is my branch
+        branchOwnerEl.textContent = 'Your branch';
+        branchOwnerEl.classList.add('show');
+        branchOwnerEl.classList.remove('not-mine');
+        isMyBranch = true;
+      } else {
+        // Someone else's branch
+        branchOwnerEl.textContent = `${ownerInfo.owner}'s branch`;
+        branchOwnerEl.classList.add('show', 'not-mine');
+        isMyBranch = false;
+      }
+      
+      // Update save button if there are changes
+      if (hasChanges) {
+        if (isMyBranch) {
+          saveButton.classList.remove('not-my-branch');
+          saveButton.textContent = saveButton.textContent.replace(/^Save to .+ \(/, '💾 Save Changes (');
+        } else {
+          saveButton.classList.add('not-my-branch');
+          saveButton.textContent = saveButton.textContent.replace(/^💾 Save Changes/, `Save to ${currentBranch}`);
+        }
+      }
+    } else {
+      // Can't determine owner
+      branchOwnerEl.classList.remove('show');
+      isMyBranch = true; // Default to allowing saves
+    }
+  } catch (error) {
+    console.error('Failed to check branch ownership:', error);
+    branchOwnerEl.classList.remove('show');
+    isMyBranch = true; // Default to allowing saves
+  }
+}
