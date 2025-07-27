@@ -1,0 +1,208 @@
+// UI Elements
+const projectName = document.getElementById('projectName');
+const branchName = document.getElementById('branchName');
+const status = document.getElementById('status');
+const saveButton = document.getElementById('saveButton');
+const messageInput = document.getElementById('messageInput');
+const syncButton = document.getElementById('syncButton');
+const pushButton = document.getElementById('pushButton');
+const branchButton = document.getElementById('branchButton');
+const selectRepoButton = document.getElementById('selectRepoButton');
+const quitButton = document.getElementById('quitButton');
+const feedback = document.getElementById('feedback');
+
+// State
+let isProcessing = false;
+let hasChanges = false;
+
+// Initialize
+updateRepoInfo();
+
+// Listen for branch changes
+window.electronAPI.onBranchChanged((repo) => {
+  projectName.textContent = repo.name;
+  branchName.textContent = repo.branch;
+});
+
+// Listen for git status changes
+window.electronAPI.onGitStatusChanged((statusInfo) => {
+  hasChanges = statusInfo.hasChanges;
+  
+  if (hasChanges) {
+    saveButton.disabled = false;
+    saveButton.textContent = `💾 Save Changes (${statusInfo.filesChanged} files)`;
+    status.textContent = `${statusInfo.filesChanged} file${statusInfo.filesChanged !== 1 ? 's' : ''} changed`;
+  } else {
+    saveButton.disabled = true;
+    saveButton.textContent = '💾 No changes to save';
+    status.textContent = 'No changes since last save';
+  }
+});
+
+// Listen for repo loaded
+window.electronAPI.onRepoLoaded((repo) => {
+  projectName.textContent = repo.name;
+  branchName.textContent = repo.branch;
+  saveButton.disabled = false;
+  syncButton.disabled = false;
+  pushButton.disabled = false;
+});
+
+// Event Listeners
+saveButton.addEventListener('click', handleSave);
+syncButton.addEventListener('click', handleSync);
+pushButton.addEventListener('click', handlePush);
+branchButton.addEventListener('click', handleBranch);
+selectRepoButton.addEventListener('click', handleSelectRepo);
+quitButton.addEventListener('click', handleQuit);
+
+// Keyboard shortcut for save
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+    e.preventDefault();
+    handleSave();
+  }
+});
+
+// Functions
+async function updateRepoInfo() {
+  try {
+    const repo = await window.gitAPI.getRepoInfo();
+    projectName.textContent = repo.name;
+    branchName.textContent = repo.branch;
+    
+    if (repo.path) {
+      saveButton.disabled = false;
+      syncButton.disabled = false;
+      pushButton.disabled = false;
+    }
+  } catch (error) {
+    showError('Failed to get repository info');
+  }
+}
+
+async function handleSave() {
+  if (isProcessing || !hasChanges) return;
+  
+  isProcessing = true;
+  saveButton.disabled = true;
+  showStatus('Saving changes...');
+  
+  try {
+    const message = messageInput.value.trim() || 'WIP';
+    const result = await window.gitAPI.save(message);
+    
+    if (result.success) {
+      showSuccess('Changes saved successfully!');
+      messageInput.value = '';
+    } else {
+      showError(result.error || 'Failed to save changes');
+    }
+  } catch (error) {
+    showError('Failed to save: ' + error.message);
+  } finally {
+    isProcessing = false;
+    // Don't re-enable if there are no changes
+    if (hasChanges) {
+      saveButton.disabled = false;
+    }
+  }
+}
+
+async function handleSync() {
+  if (isProcessing) return;
+  
+  isProcessing = true;
+  syncButton.disabled = true;
+  showStatus('Syncing...');
+  
+  try {
+    const result = await window.gitAPI.sync();
+    
+    if (result.success) {
+      showSuccess('Synced successfully!');
+    } else {
+      showError(result.error || 'Failed to sync');
+    }
+  } catch (error) {
+    showError('Failed to sync: ' + error.message);
+  } finally {
+    isProcessing = false;
+    syncButton.disabled = false;
+  }
+}
+
+async function handlePush() {
+  if (isProcessing) return;
+  
+  isProcessing = true;
+  pushButton.disabled = true;
+  showStatus('Pushing...');
+  
+  try {
+    const result = await window.gitAPI.push();
+    
+    if (result.success) {
+      showSuccess('Pushed successfully!');
+    } else {
+      showError(result.error || 'Failed to push');
+    }
+  } catch (error) {
+    showError('Failed to push: ' + error.message);
+  } finally {
+    isProcessing = false;
+    pushButton.disabled = false;
+  }
+}
+
+async function handleBranch() {
+  try {
+    await window.gitAPI.openBranches();
+  } catch (error) {
+    showError('Failed to open branches view: ' + error.message);
+  }
+}
+
+async function handleSelectRepo() {
+  try {
+    const result = await window.gitAPI.selectRepo();
+    
+    if (result.success) {
+      updateRepoInfo();
+      showSuccess('Repository selected!');
+    } else if (result.error) {
+      showError(result.error);
+    }
+  } catch (error) {
+    showError('Failed to select repository: ' + error.message);
+  }
+}
+
+async function handleQuit() {
+  try {
+    await window.gitAPI.quit();
+  } catch (error) {
+    console.error('Failed to quit:', error);
+  }
+}
+
+function showStatus(message) {
+  status.textContent = message;
+  feedback.innerHTML = '';
+}
+
+function showError(message) {
+  status.textContent = 'Ready';
+  feedback.innerHTML = `<div class="error">${message}</div>`;
+  setTimeout(() => {
+    feedback.innerHTML = '';
+  }, 5000);
+}
+
+function showSuccess(message) {
+  status.textContent = 'Ready';
+  feedback.innerHTML = `<div class="success">${message}</div>`;
+  setTimeout(() => {
+    feedback.innerHTML = '';
+  }, 3000);
+}

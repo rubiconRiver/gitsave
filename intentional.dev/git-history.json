@@ -1,0 +1,57 @@
+{
+  "users": {
+    "garett": {
+      "name": "Garett",
+      "email": "garett.gelsinger@gmail.com",
+      "color": "#FF6B6B"
+    }
+  },
+  "branches": [
+    {
+      "name": "main",
+      "owner": null,
+      "description": "Main development branch",
+      "commits": [
+        {
+          "hash": "ea8c85781e9e93c55899290d0a396eab14ccd86a",
+          "message": "Initial commit",
+          "author": "garett",
+          "time": "2025-01-26T19:27:30-06:00"
+        },
+        {
+          "hash": "f6185656a498f3026edae10473dadf8e784f2688",
+          "message": "WIP",
+          "author": "garett",
+          "time": "2025-01-26T19:33:43-06:00"
+        },
+        {
+          "hash": "1b6b16368fcb6dd8c0884dcea9bc4f5df11be8a1",
+          "message": "WIP",
+          "author": "garett",
+          "time": "2025-01-26T20:49:44-06:00"
+        },
+        {
+          "hash": "133379692d30512b7080514f5dfa09a2d5a96996",
+          "message": "Add proprietary license and mark package as private",
+          "author": "garett",
+          "time": "2025-01-26T21:22:06-06:00"
+        },
+        {
+          "hash": "55f36340b345d8e6f41a0da433bc4c663bd700a9",
+          "message": "WIP",
+          "author": "garett",
+          "time": "2025-01-26T21:31:14-06:00"
+        }
+      ],
+      "status": "active",
+      "parent": null
+    }
+  ],
+  "notes": [
+    {
+      "date": "2025-01-27",
+      "idea": "Multi-folder management",
+      "description": "Add 'duplicate' button to manage same project across multiple folders - useful for working on different features/experiments in parallel without branches"
+    }
+  ]
+}

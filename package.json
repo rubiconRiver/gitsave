@@ -1,0 +1,65 @@
+{
+  "name": "intentional",
+  "version": "0.2.0",
+  "description": "Version control made intentional",
+  "main": "dist/main.js",
+  "scripts": {
+    "start": "npm run build && electron .",
+    "build": "tsc",
+    "dev": "tsc -w & electron .",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "private": true,
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "electron": "^30.5.1",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "menubar": "^9.5.1",
+    "node-machine-id": "^1.1.12",
+    "simple-git": "^3.28.0"
+  },
+  "build": {
+    "appId": "dev.getintentional.app",
+    "productName": "Intentional",
+    "directories": {
+      "output": "dist-app"
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "icon": "assets/icon.icns",
+      "identity": "Apple Development: garett.gelsinger@gmail.com (QL2HMQ7Y63)",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ]
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "title": "Install Intentional"
+    }
+  }
+}

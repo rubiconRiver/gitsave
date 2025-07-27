@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Branch Manager - GitSave</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      display: flex;
+      height: 100vh;
+    }
+    
+    .sidebar {
+      width: 350px;
+      background: #161b22;
+      border-right: 1px solid #30363d;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    .header {
+      padding: 20px;
+      border-bottom: 1px solid #30363d;
+    }
+    
+    .current-branch {
+      font-size: 14px;
+      color: #8b949e;
+      margin-bottom: 5px;
+    }
+    
+    .current-branch-name {
+      font-size: 20px;
+      font-weight: 600;
+      color: #3fb950;
+    }
+    
+    .actions {
+      padding: 15px 20px;
+      border-bottom: 1px solid #30363d;
+      display: flex;
+      gap: 10px;
+    }
+    
+    .btn {
+      padding: 6px 12px;
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #c9d1d9;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    
+    .btn:hover {
+      background: #30363d;
+      border-color: #8b949e;
+    }
+    
+    .btn-primary {
+      background: #238636;
+      border-color: #238636;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #2ea043;
+      border-color: #2ea043;
+    }
+    
+    .branch-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    
+    .collaborator-section {
+      margin-bottom: 20px;
+    }
+    
+    .collaborator-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      margin-bottom: 5px;
+      font-weight: 600;
+      color: #8b949e;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    
+    .collaborator-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #30363d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    
+    .branch-item {
+      padding: 10px;
+      margin: 2px 0;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .branch-item:hover {
+      background: #161b22;
+      border-color: #58a6ff;
+    }
+    
+    .branch-item.current {
+      border-color: #3fb950;
+      background: #0d3819;
+    }
+    
+    .branch-name {
+      font-weight: 500;
+      color: #58a6ff;
+      margin-bottom: 4px;
+    }
+    
+    .branch-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #8b949e;
+    }
+    
+    .branch-message {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 200px;
+    }
+    
+    .branch-time {
+      flex-shrink: 0;
+      margin-left: 10px;
+    }
+    
+    .main-content {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    #canvas {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #30363d;
+      border-top: 3px solid #58a6ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .search-box {
+      padding: 10px 20px;
+      border-bottom: 1px solid #30363d;
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: 8px 12px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #c9d1d9;
+      font-size: 14px;
+    }
+    
+    .search-input:focus {
+      outline: none;
+      border-color: #58a6ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="header">
+      <div class="current-branch">Current Branch</div>
+      <div class="current-branch-name" id="currentBranchName">Loading...</div>
+    </div>
+    
+    <div class="actions">
+      <button class="btn btn-primary" onclick="createBranch()">New Branch</button>
+      <button class="btn" onclick="refreshBranches()">Refresh</button>
+      <button class="btn" onclick="fetchRemote()">Fetch</button>
+    </div>
+    
+    <div class="search-box">
+      <input type="text" class="search-input" placeholder="Filter branches..." id="searchInput">
+    </div>
+    
+    <div class="branch-list" id="branchList">
+      <div class="loading">
+        <div class="spinner"></div>
+        <div>Loading branches...</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="main-content">
+    <canvas id="canvas"></canvas>
+  </div>
+  
+  <script>
+    const { ipcRenderer } = require('electron');
+    const simpleGit = require('simple-git');
+    
+    let gitData = null;
+    let git = null;
+    let currentBranch = '';
+    let allBranches = [];
+    
+    // Parse git data from main process
+    try {
+      const args = process.argv.slice(-1)[0];
+      gitData = JSON.parse(args);
+      currentBranch = gitData.currentBranch;
+      allBranches = gitData.branchDetails || [];
+      
+      // Initialize simple-git with repo path
+      if (gitData.repoPath) {
+        git = simpleGit(gitData.repoPath);
+      }
+      
+      document.getElementById('currentBranchName').textContent = currentBranch;
+      
+    } catch (error) {
+      console.error('Failed to initialize:', error);
+    }
+    
+    // Group branches by author
+    function groupBranchesByAuthor() {
+      const grouped = {};
+      
+      allBranches.forEach(branch => {
+        const author = branch.lastCommit?.author || 'Unknown';
+        if (!grouped[author]) {
+          grouped[author] = [];
+        }
+        grouped[author].push(branch);
+      });
+      
+      // Sort branches within each group by date (most recent first)
+      Object.keys(grouped).forEach(author => {
+        grouped[author].sort((a, b) => {
+          const dateA = new Date(a.lastCommit?.date || 0);
+          const dateB = new Date(b.lastCommit?.date || 0);
+          return dateB - dateA;
+        });
+      });
+      
+      return grouped;
+    }
+    
+    // Render branch list
+    function renderBranches(filter = '') {
+      const branchList = document.getElementById('branchList');
+      const grouped = groupBranchesByAuthor();
+      
+      branchList.innerHTML = '';
+      
+      Object.entries(grouped).forEach(([author, branches]) => {
+        // Filter branches
+        const filteredBranches = branches.filter(branch => 
+          branch.name.toLowerCase().includes(filter.toLowerCase()) ||
+          branch.lastCommit?.message?.toLowerCase().includes(filter.toLowerCase())
+        );
+        
+        if (filteredBranches.length === 0) return;
+        
+        // Only show top 3 most recent branches per author
+        const topBranches = filteredBranches.slice(0, 3);
+        
+        const section = document.createElement('div');
+        section.className = 'collaborator-section';
+        
+        // Author header
+        const header = document.createElement('div');
+        header.className = 'collaborator-header';
+        
+        const avatar = document.createElement('div');
+        avatar.className = 'collaborator-avatar';
+        avatar.style.background = getColorForAuthor(author);
+        avatar.textContent = author.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        
+        header.appendChild(avatar);
+        header.appendChild(document.createTextNode(author));
+        section.appendChild(header);
+        
+        // Branch items
+        topBranches.forEach(branch => {
+          const item = document.createElement('div');
+          item.className = 'branch-item';
+          if (branch.name === currentBranch) {
+            item.className += ' current';
+          }
+          
+          const name = document.createElement('div');
+          name.className = 'branch-name';
+          name.textContent = branch.name;
+          
+          const info = document.createElement('div');
+          info.className = 'branch-info';
+          
+          const message = document.createElement('div');
+          message.className = 'branch-message';
+          message.textContent = branch.lastCommit?.message || 'No commits';
+          
+          const time = document.createElement('div');
+          time.className = 'branch-time';
+          time.textContent = formatDate(branch.lastCommit?.date);
+          
+          info.appendChild(message);
+          info.appendChild(time);
+          
+          item.appendChild(name);
+          item.appendChild(info);
+          
+          item.onclick = () => switchToBranch(branch.name);
+          
+          section.appendChild(item);
+        });
+        
+        branchList.appendChild(section);
+      });
+    }
+    
+    // Switch branch
+    async function switchToBranch(branchName) {
+      if (!git || branchName === currentBranch) return;
+      
+      try {
+        // Show loading state
+        document.getElementById('currentBranchName').textContent = 'Switching...';
+        
+        await git.checkout(branchName);
+        currentBranch = branchName;
+        document.getElementById('currentBranchName').textContent = currentBranch;
+        
+        // Re-render branch list
+        renderBranches(document.getElementById('searchInput').value);
+        
+        // Update visualization
+        updateVisualization();
+        
+      } catch (error) {
+        console.error('Failed to switch branch:', error);
+        alert('Failed to switch branch: ' + error.message);
+        document.getElementById('currentBranchName').textContent = currentBranch;
+      }
+    }
+    
+    // Create new branch
+    async function createBranch() {
+      const name = prompt('Enter new branch name:');
+      if (!name || !git) return;
+      
+      try {
+        await git.checkoutBranch(name, currentBranch);
+        currentBranch = name;
+        document.getElementById('currentBranchName').textContent = currentBranch;
+        
+        // Refresh branch list
+        await refreshBranches();
+        
+      } catch (error) {
+        console.error('Failed to create branch:', error);
+        alert('Failed to create branch: ' + error.message);
+      }
+    }
+    
+    // Refresh branches
+    async function refreshBranches() {
+      if (!git) return;
+      
+      try {
+        const branches = await git.branchLocal();
+        const branchDetails = [];
+        
+        for (const branch of branches.all) {
+          try {
+            const log = await git.log([branch, '-n', '1']);
+            const lastCommit = log.latest;
+            branchDetails.push({
+              name: branch,
+              lastCommit: lastCommit ? {
+                hash: lastCommit.hash,
+                message: lastCommit.message,
+                author: lastCommit.author_name,
+                email: lastCommit.author_email,
+                date: lastCommit.date
+              } : null
+            });
+          } catch (err) {
+            console.error(`Failed to get details for branch ${branch}:`, err);
+          }
+        }
+        
+        allBranches = branchDetails;
+        renderBranches(document.getElementById('searchInput').value);
+        
+      } catch (error) {
+        console.error('Failed to refresh branches:', error);
+      }
+    }
+    
+    // Fetch from remote
+    async function fetchRemote() {
+      if (!git) return;
+      
+      try {
+        const btn = event.target;
+        btn.textContent = 'Fetching...';
+        btn.disabled = true;
+        
+        await git.fetch();
+        
+        btn.textContent = 'Fetch';
+        btn.disabled = false;
+        
+        // Refresh branch list
+        await refreshBranches();
+        
+      } catch (error) {
+        console.error('Failed to fetch:', error);
+        alert('Failed to fetch: ' + error.message);
+        event.target.textContent = 'Fetch';
+        event.target.disabled = false;
+      }
+    }
+    
+    // Search functionality
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      renderBranches(e.target.value);
+    });
+    
+    // Helper functions
+    function getColorForAuthor(author) {
+      const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#48C9B0', '#9B59B6'];
+      let hash = 0;
+      for (let i = 0; i < author.length; i++) {
+        hash = author.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return colors[Math.abs(hash) % colors.length];
+    }
+    
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const date = new Date(dateStr);
+      const now = new Date();
+      const diff = now - date;
+      
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      if (days === 0) return 'Today';
+      if (days === 1) return 'Yesterday';
+      if (days < 7) return `${days} days ago`;
+      if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+      if (days < 365) return `${Math.floor(days / 30)} months ago`;
+      return `${Math.floor(days / 365)} years ago`;
+    }
+    
+    // Canvas visualization
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    function updateVisualization() {
+      // TODO: Update graph visualization
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#30363d';
+      ctx.font = '20px sans-serif';
+      ctx.fillText(`Visualization for ${currentBranch}`, 50, 50);
+    }
+    
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    
+    // Initial render
+    renderBranches();
+    updateVisualization();
+  </script>
+</body>
+</html>
