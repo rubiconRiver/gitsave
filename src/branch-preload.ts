@@ -13,6 +13,7 @@ let initialData: any = null;
 
 // Listen for initial data from main process
 ipcRenderer.on('branch-window-data', (_, data) => {
+  console.log('Received branch-window-data in preload:', data);
   initialData = data;
 });
 

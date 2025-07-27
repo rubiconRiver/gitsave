@@ -16,12 +16,16 @@
   "private": true,
   "type": "commonjs",
   "devDependencies": {
+    "@types/cytoscape": "^3.21.9",
     "@types/node": "^24.1.0",
     "electron": "^30.5.1",
     "electron-builder": "^26.0.12",
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "cytoscape": "^3.32.1",
+    "cytoscape-dagre": "^2.5.0",
+    "dagre": "^0.8.5",
     "electron-store": "^8.1.0",
     "menubar": "^9.5.1",
     "node-machine-id": "^1.1.12",
@@ -42,7 +46,10 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ]
     },

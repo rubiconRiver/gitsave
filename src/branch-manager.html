@@ -337,6 +337,9 @@
       background: #2ea043;
     }
   </style>
+  <script src="../node_modules/cytoscape/dist/cytoscape.min.js"></script>
+  <script src="../node_modules/dagre/dist/dagre.min.js"></script>
+  <script src="../node_modules/cytoscape-dagre/cytoscape-dagre.js"></script>
 </head>
 <body>
   <div class="sidebar">
@@ -364,7 +367,7 @@
   </div>
   
   <div class="main-content">
-    <canvas id="canvas"></canvas>
+    <div id="cy" style="width: 100%; height: 100%;"></div>
   </div>
   
   <!-- New Branch Modal -->
@@ -386,6 +389,26 @@
   </div>
   
   <script>
+    // Constants for visualization
+    const NODE_SIZE = 20;
+    const NODE_BORDER_WIDTH = 2;
+    const EDGE_WIDTH = 2;
+    const NODE_SEP = 50;
+    const RANK_SEP = 100;
+    const WHEEL_SENSITIVITY = 0.2;
+    const MIN_ZOOM = 0.3;
+    const MAX_ZOOM = 3;
+    const FONT_SIZE = '10px';
+    const LABEL_MAX_LENGTH = 30;
+    const HASH_LENGTH = 7;
+    
+    // Colors
+    const NODE_COLOR = '#58a6ff';
+    const NODE_HOVER_COLOR = '#f85149';
+    const NODE_SELECTED_COLOR = '#3fb950';
+    const EDGE_COLOR = '#30363d';
+    const TEXT_COLOR = '#c9d1d9';
+    
     let gitData = null;
     let currentBranch = '';
     let allBranches = [];
@@ -724,33 +747,168 @@
       return `${Math.floor(days / 365)} years ago`;
     }
     
-    // Canvas visualization
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
+    // Cytoscape visualization
+    let cy = null;
     
-    function updateVisualization() {
-      // TODO: Update graph visualization
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#30363d';
-      ctx.font = '20px sans-serif';
-      ctx.fillText(`Visualization for ${currentBranch}`, 50, 50);
+    // Register the dagre layout
+    cytoscape.use(cytoscapeDagre);
+    
+    function parseGitDataToCytoscape() {
+      console.log('parseGitDataToCytoscape called, gitData:', gitData);
+      const nodes = [];
+      const edges = [];
+      const commitMap = new Map();
+      
+      // Parse commits from log data
+      if (gitData && gitData.log) {
+        console.log('Processing', gitData.log.length, 'commits');
+        gitData.log.forEach((commit, index) => {
+          const node = {
+            data: {
+              id: commit.hash,
+              label: commit.message.split('\n')[0].substring(0, LABEL_MAX_LENGTH),
+              author: commit.author_name,
+              email: commit.author_email,
+              date: commit.date,
+              message: commit.message,
+              hash: commit.hash.substring(0, HASH_LENGTH)
+            }
+          };
+          nodes.push(node);
+          commitMap.set(commit.hash, commit);
+        });
+        
+        // Create edges based on parent relationships
+        // For now, create a simple linear chain
+        for (let i = 0; i < gitData.log.length - 1; i++) {
+          edges.push({
+            data: {
+              id: `edge-${i}`,
+              source: gitData.log[i + 1].hash,
+              target: gitData.log[i].hash
+            }
+          });
+        }
+      }
+      
+      return { nodes, edges };
     }
     
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-    
-    // Initial render - wait a bit for data to arrive
-    setTimeout(() => {
-      console.log('Initial render check - branches:', allBranches.length);
-      if (allBranches.length > 0) {
-        renderBranches();
-      } else {
-        console.log('No branches yet, refreshing...');
-        // If no data yet, try to refresh
-        refreshBranches();
+    function updateVisualization() {
+      console.log('updateVisualization called');
+      const container = document.getElementById('cy');
+      
+      if (!container) {
+        console.error('Cytoscape container not found!');
+        return;
       }
-      updateVisualization();
-    }, 100);
+      
+      // Parse git data
+      const { nodes, edges } = parseGitDataToCytoscape();
+      console.log('Parsed nodes:', nodes.length, 'edges:', edges.length);
+      
+      if (nodes.length === 0) {
+        console.warn('No nodes to display');
+        container.innerHTML = '<div style="padding: 20px; color: #8b949e;">No commits to visualize</div>';
+        return;
+      }
+      
+      // Initialize cytoscape
+      cy = cytoscape({
+        container: container,
+        elements: { nodes, edges },
+        style: [
+          {
+            selector: 'node',
+            style: {
+              'background-color': NODE_COLOR,
+              'label': 'data(hash)',
+              'text-valign': 'bottom',
+              'text-halign': 'center',
+              'font-size': FONT_SIZE,
+              'color': TEXT_COLOR,
+              'width': NODE_SIZE,
+              'height': NODE_SIZE,
+              'border-width': NODE_BORDER_WIDTH,
+              'border-color': EDGE_COLOR
+            }
+          },
+          {
+            selector: 'edge',
+            style: {
+              'width': EDGE_WIDTH,
+              'line-color': EDGE_COLOR,
+              'target-arrow-color': EDGE_COLOR,
+              'target-arrow-shape': 'triangle',
+              'curve-style': 'bezier'
+            }
+          },
+          {
+            selector: 'node:selected',
+            style: {
+              'background-color': NODE_SELECTED_COLOR,
+              'border-color': NODE_SELECTED_COLOR,
+              'border-width': 3
+            }
+          }
+        ],
+        layout: {
+          name: 'dagre',
+          rankDir: 'LR', // Left to right layout
+          nodeSep: NODE_SEP,
+          rankSep: RANK_SEP,
+          animate: false
+        },
+        wheelSensitivity: WHEEL_SENSITIVITY,
+        minZoom: MIN_ZOOM,
+        maxZoom: MAX_ZOOM
+      });
+      
+      // Add hover tooltip
+      cy.on('mouseover', 'node', function(evt) {
+        const node = evt.target;
+        const data = node.data();
+        node.style({
+          'background-color': NODE_HOVER_COLOR,
+          'border-color': NODE_HOVER_COLOR,
+          'z-index': 999
+        });
+      });
+      
+      cy.on('mouseout', 'node', function(evt) {
+        const node = evt.target;
+        node.style({
+          'background-color': NODE_COLOR,
+          'border-color': EDGE_COLOR
+        });
+      });
+    }
+    
+    // Poll for initial data
+    function checkForInitialData() {
+      const data = window.initialData.get();
+      if (data && !gitData) {
+        console.log('Got initial data from polling:', data);
+        gitData = data;
+        currentBranch = gitData.currentBranch;
+        allBranches = gitData.branchDetails || [];
+        document.getElementById('currentBranchName').textContent = currentBranch;
+        console.log('Current branch:', currentBranch);
+        console.log('All branches:', allBranches);
+        
+        // Render UI
+        renderBranches();
+        updateVisualization();
+      } else if (!data) {
+        // Keep polling
+        setTimeout(checkForInitialData, 100);
+      }
+    }
+    
+    window.addEventListener('DOMContentLoaded', () => {
+      console.log('DOM loaded, starting to poll for git data...');
+      checkForInitialData();
+    });
   </script>
 </body>
 </html>
