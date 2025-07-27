@@ -5,6 +5,7 @@ import * as fs from 'fs/promises';
 import simpleGit from 'simple-git';
 import Store from 'electron-store';
 import { LicenseManager } from './license';
+import { GitDataFetcher } from './git-data-fetcher';
 
 const store = new Store();
 const mb = menubar({
@@ -693,47 +694,14 @@ ipcMain.handle('branches:open', async () => {
   }
   
   try {
-    const git = simpleGit(currentRepo.path);
+    // Use GitDataFetcher to get comprehensive git data
+    const fetcher = new GitDataFetcher(currentRepo.path);
+    const gitData = await fetcher.fetchComprehensiveData();
     
-    // Get local branches (fast)
-    const branches = await git.branchLocal();
-    const log = await git.log(['--oneline', '-n', '50']);
-    
-    // Get raw graph output
-    const rawGraph = await git.raw(['log', '--graph', '--oneline', '--all', '-n', '20']);
-    
-    // Get branch details with last commit info
-    const branchDetails = [];
-    for (const branch of branches.all) {
-      try {
-        const branchLog = await git.log([branch, '-n', '1']);
-        const lastCommit = branchLog.latest;
-        branchDetails.push({
-          name: branch,
-          lastCommit: lastCommit ? {
-            hash: lastCommit.hash,
-            message: lastCommit.message,
-            author: lastCommit.author_name,
-            email: lastCommit.author_email,
-            date: lastCommit.date
-          } : null
-        });
-      } catch (err) {
-        console.error(`Failed to get details for branch ${branch}:`, err);
-      }
-    }
-    
-    console.log('Branch details:', branchDetails);
-    
-    // Save current git data
-    const gitData = {
-      currentBranch: branches.current,
-      branches: branches.all,
-      branchDetails: branchDetails,
-      log: log.all,
-      rawGraph: rawGraph,
-      repoPath: currentRepo.path
-    };
+    console.log('Fetched git data:');
+    console.log('- Branches:', gitData.branches.length);
+    console.log('- All commits:', gitData.allCommits.length);
+    console.log('- Branch details:', gitData.branchDetails.length);
     
     // Create and show window
     const branchWindow = new BrowserWindow({
@@ -754,6 +722,7 @@ ipcMain.handle('branches:open', async () => {
     });
     
     // Non-blocking fetch in background
+    const git = simpleGit(currentRepo.path);
     git.fetch().then(() => {
       console.log('Git fetch completed');
       // Could send update to window if needed

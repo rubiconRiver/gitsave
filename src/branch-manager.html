@@ -402,6 +402,12 @@
     const LABEL_MAX_LENGTH = 30;
     const HASH_LENGTH = 7;
     
+    // Layout
+    const TIME_AXIS_WIDTH = 1200;
+    const TIME_AXIS_START = 100;
+    const AUTHOR_ROW_HEIGHT = 100;
+    const BASE_Y_POSITION = 100;
+    
     // Colors
     const NODE_COLOR = '#58a6ff';
     const NODE_HOVER_COLOR = '#f85149';
@@ -750,8 +756,18 @@
     // Cytoscape visualization
     let cy = null;
     
+    // Check if libraries loaded
+    console.log('Cytoscape loaded?', typeof cytoscape !== 'undefined');
+    console.log('Dagre loaded?', typeof dagre !== 'undefined');
+    console.log('CytoscapeDagre loaded?', typeof cytoscapeDagre !== 'undefined');
+    
     // Register the dagre layout
-    cytoscape.use(cytoscapeDagre);
+    if (typeof cytoscape !== 'undefined' && typeof cytoscapeDagre !== 'undefined') {
+      cytoscape.use(cytoscapeDagre);
+      console.log('Registered dagre layout with cytoscape');
+    } else {
+      console.error('Failed to register dagre layout - libraries not loaded');
+    }
     
     function parseGitDataToCytoscape() {
       console.log('parseGitDataToCytoscape called, gitData:', gitData);
@@ -759,10 +775,48 @@
       const edges = [];
       const commitMap = new Map();
       
-      // Parse commits from log data
-      if (gitData && gitData.log) {
-        console.log('Processing', gitData.log.length, 'commits');
-        gitData.log.forEach((commit, index) => {
+      // Parse commits from allCommits data
+      if (gitData && gitData.allCommits) {
+        console.log('Processing', gitData.allCommits.length, 'commits from all branches');
+        console.log('First commit example:', gitData.allCommits[0]);
+        
+        // First pass: collect all timestamps and authors
+        const timestamps = [];
+        const authorSet = new Set();
+        
+        gitData.allCommits.forEach((commit) => {
+          const timestamp = new Date(commit.date).getTime();
+          timestamps.push(timestamp);
+          authorSet.add(commit.author_name);
+        });
+        
+        // Calculate time range
+        const minTime = Math.min(...timestamps);
+        const maxTime = Math.max(...timestamps);
+        const timeRange = maxTime - minTime;
+        
+        console.log('Time range:', new Date(minTime), 'to', new Date(maxTime));
+        
+        // Create author Y positions
+        const authorGroups = {};
+        let yOffset = 0;
+        Array.from(authorSet).sort().forEach(author => {
+          authorGroups[author] = yOffset;
+          yOffset += AUTHOR_ROW_HEIGHT;
+        });
+        
+        console.log('Author groups:', authorGroups);
+        
+        // Create nodes with pre-calculated positions
+        gitData.allCommits.forEach((commit) => {
+          const timestamp = new Date(commit.date).getTime();
+          
+          // Calculate position
+          const x = timeRange > 0 ? 
+            TIME_AXIS_START + ((timestamp - minTime) / timeRange) * TIME_AXIS_WIDTH : 
+            TIME_AXIS_START;
+          const y = BASE_Y_POSITION + (authorGroups[commit.author_name] || 0);
+          
           const node = {
             data: {
               id: commit.hash,
@@ -771,24 +825,31 @@
               email: commit.author_email,
               date: commit.date,
               message: commit.message,
-              hash: commit.hash.substring(0, HASH_LENGTH)
-            }
+              hash: commit.hash.substring(0, HASH_LENGTH),
+              timestamp: timestamp
+            },
+            position: { x, y }
           };
           nodes.push(node);
           commitMap.set(commit.hash, commit);
         });
         
         // Create edges based on parent relationships
-        // For now, create a simple linear chain
-        for (let i = 0; i < gitData.log.length - 1; i++) {
-          edges.push({
-            data: {
-              id: `edge-${i}`,
-              source: gitData.log[i + 1].hash,
-              target: gitData.log[i].hash
+        gitData.allCommits.forEach((commit) => {
+          commit.parents.forEach((parentHash, index) => {
+            if (commitMap.has(parentHash)) {
+              edges.push({
+                data: {
+                  id: `edge-${commit.hash}-${parentHash}-${index}`,
+                  source: parentHash,
+                  target: commit.hash
+                }
+              });
             }
           });
-        }
+        });
+        
+        console.log('Created', nodes.length, 'nodes and', edges.length, 'edges');
       }
       
       return { nodes, edges };
@@ -814,10 +875,25 @@
       }
       
       // Initialize cytoscape
-      cy = cytoscape({
+      console.log('Initializing cytoscape with:', {
         container: container,
-        elements: { nodes, edges },
-        style: [
+        nodesCount: nodes.length,
+        edgesCount: edges.length,
+        containerWidth: container.offsetWidth,
+        containerHeight: container.offsetHeight
+      });
+      
+      // Add some visible content to verify container exists
+      if (nodes.length === 0) {
+        container.innerHTML = '<div style="padding: 20px; color: #f85149; background: #161b22; border-radius: 6px;">No commits found in allCommits data!</div>';
+        return;
+      }
+      
+      try {
+        cy = cytoscape({
+          container: container,
+          elements: { nodes, edges },
+          style: [
           {
             selector: 'node',
             style: {
@@ -853,10 +929,7 @@
           }
         ],
         layout: {
-          name: 'dagre',
-          rankDir: 'LR', // Left to right layout
-          nodeSep: NODE_SEP,
-          rankSep: RANK_SEP,
+          name: 'preset', // Use preset positions that we calculated above
           animate: false
         },
         wheelSensitivity: WHEEL_SENSITIVITY,
@@ -882,6 +955,28 @@
           'border-color': EDGE_COLOR
         });
       });
+      
+      // Log final state
+      console.log('Cytoscape initialized successfully');
+      console.log('Graph bounds:', cy.elements().boundingBox());
+      console.log('First few nodes:', cy.nodes().slice(0, 5).map(n => ({
+        id: n.id(),
+        position: n.position(),
+        data: n.data()
+      })));
+      
+      // Fit to viewport
+      cy.fit();
+      console.log('Called cy.fit() to fit graph to viewport');
+      
+      } catch (error) {
+        console.error('Failed to initialize cytoscape:', error);
+        container.innerHTML = `<div style="padding: 20px; color: #f85149; background: #161b22; border-radius: 6px;">
+          <h3>Visualization Error</h3>
+          <p>${error.message}</p>
+          <p style="font-size: 12px; color: #8b949e;">Check console for details</p>
+        </div>`;
+      }
     }
     
     // Poll for initial data
