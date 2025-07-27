@@ -391,7 +391,9 @@
   <script>
     // Constants for visualization
     const NODE_SIZE = 20;
+    const NODE_SIZE_SAVE = 8;  // Much smaller for save commits
     const NODE_BORDER_WIDTH = 2;
+    const NODE_BORDER_WIDTH_SAVE = 1;
     const EDGE_WIDTH = 2;
     const NODE_SEP = 50;
     const RANK_SEP = 100;
@@ -399,6 +401,7 @@
     const MIN_ZOOM = 0.3;
     const MAX_ZOOM = 3;
     const FONT_SIZE = '10px';
+    const FONT_SIZE_SAVE = '8px';
     const LABEL_MAX_LENGTH = 30;
     const HASH_LENGTH = 7;
     
@@ -769,6 +772,16 @@
       console.error('Failed to register dagre layout - libraries not loaded');
     }
     
+    // Helper function to detect save/WIP commits
+    function isSaveCommit(message) {
+      const lowerMessage = message.toLowerCase().trim();
+      return lowerMessage === 'wip' || 
+             lowerMessage === 'save' || 
+             lowerMessage === 'saving' ||
+             lowerMessage.startsWith('wip:') ||
+             lowerMessage.startsWith('save:');
+    }
+    
     function parseGitDataToCytoscape() {
       console.log('parseGitDataToCytoscape called, gitData:', gitData);
       const nodes = [];
@@ -810,6 +823,7 @@
         // Create nodes with pre-calculated positions
         gitData.allCommits.forEach((commit) => {
           const timestamp = new Date(commit.date).getTime();
+          const isSave = isSaveCommit(commit.message);
           
           // Calculate position
           const x = timeRange > 0 ? 
@@ -826,9 +840,11 @@
               date: commit.date,
               message: commit.message,
               hash: commit.hash.substring(0, HASH_LENGTH),
-              timestamp: timestamp
+              timestamp: timestamp,
+              isSave: isSave
             },
-            position: { x, y }
+            position: { x, y },
+            classes: isSave ? 'save-commit' : 'intentional-commit'
           };
           nodes.push(node);
           commitMap.set(commit.hash, commit);
@@ -849,7 +865,12 @@
           });
         });
         
+        // Count save vs intentional commits
+        const saveCount = nodes.filter(n => n.data.isSave).length;
+        const intentionalCount = nodes.length - saveCount;
+        
         console.log('Created', nodes.length, 'nodes and', edges.length, 'edges');
+        console.log(`Commits: ${intentionalCount} intentional, ${saveCount} saves`);
       }
       
       return { nodes, edges };
@@ -894,8 +915,9 @@
           container: container,
           elements: { nodes, edges },
           style: [
+          // Default node style (intentional commits)
           {
-            selector: 'node',
+            selector: 'node.intentional-commit',
             style: {
               'background-color': NODE_COLOR,
               'label': 'data(hash)',
@@ -907,6 +929,19 @@
               'height': NODE_SIZE,
               'border-width': NODE_BORDER_WIDTH,
               'border-color': EDGE_COLOR
+            }
+          },
+          // Save/WIP commit style
+          {
+            selector: 'node.save-commit',
+            style: {
+              'background-color': '#30363d',
+              'label': '', // No label for save commits
+              'width': NODE_SIZE_SAVE,
+              'height': NODE_SIZE_SAVE,
+              'border-width': NODE_BORDER_WIDTH_SAVE,
+              'border-color': '#21262d',
+              'opacity': 0.6
             }
           },
           {
@@ -941,19 +976,43 @@
       cy.on('mouseover', 'node', function(evt) {
         const node = evt.target;
         const data = node.data();
-        node.style({
-          'background-color': NODE_HOVER_COLOR,
-          'border-color': NODE_HOVER_COLOR,
-          'z-index': 999
-        });
+        
+        if (data.isSave) {
+          node.style({
+            'background-color': '#58a6ff',
+            'border-color': '#58a6ff',
+            'opacity': 1,
+            'width': NODE_SIZE_SAVE + 4,
+            'height': NODE_SIZE_SAVE + 4,
+            'z-index': 999
+          });
+        } else {
+          node.style({
+            'background-color': NODE_HOVER_COLOR,
+            'border-color': NODE_HOVER_COLOR,
+            'z-index': 999
+          });
+        }
       });
       
       cy.on('mouseout', 'node', function(evt) {
         const node = evt.target;
-        node.style({
-          'background-color': NODE_COLOR,
-          'border-color': EDGE_COLOR
-        });
+        const data = node.data();
+        
+        if (data.isSave) {
+          node.style({
+            'background-color': '#30363d',
+            'border-color': '#21262d',
+            'opacity': 0.6,
+            'width': NODE_SIZE_SAVE,
+            'height': NODE_SIZE_SAVE
+          });
+        } else {
+          node.style({
+            'background-color': NODE_COLOR,
+            'border-color': EDGE_COLOR
+          });
+        }
       });
       
       // Log final state
