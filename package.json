@@ -1,0 +1,27 @@
+{
+  "name": "gitsave",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/main.js",
+  "scripts": {
+    "start": "npm run build && electron .",
+    "build": "tsc",
+    "dev": "tsc -w & electron .",
+    "dist": "npm run build && electron-builder"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "electron": "^30.5.1",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "menubar": "^9.5.1",
+    "simple-git": "^3.28.0"
+  }
+}
