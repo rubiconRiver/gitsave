@@ -63,9 +63,13 @@ mb.on('ready', async () => {
     }
   }
   
-  // Update tray title periodically
+  // Update tray title and git info periodically
   updateTrayTitle();
-  setInterval(updateTrayTitle, 5000);
+  updateGitInfo();
+  setInterval(() => {
+    updateTrayTitle();
+    updateGitInfo();
+  }, 2000); // Check every 2 seconds
 });
 
 mb.on('after-create-window', () => {
@@ -78,6 +82,26 @@ mb.on('after-create-window', () => {
 function updateTrayTitle() {
   if (mb.tray) {
     mb.tray.setTitle(`${currentRepo.name}/${currentRepo.branch}`);
+  }
+}
+
+async function updateGitInfo() {
+  if (!currentRepo.path) return;
+  
+  try {
+    const git = simpleGit(currentRepo.path);
+    const branchInfo = await git.branchLocal();
+    
+    if (branchInfo.current !== currentRepo.branch) {
+      currentRepo.branch = branchInfo.current;
+      
+      // Notify the renderer window about branch change
+      if (mb.window) {
+        mb.window.webContents.send('branch-changed', currentRepo);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to update git info:', error);
   }
 }
 
@@ -192,7 +216,7 @@ ipcMain.handle('branches:open', () => {
     }
   });
   
-  branchWindow.loadFile(path.join(__dirname, '..', 'src', 'branch-graph.html'));
+  branchWindow.loadFile(path.join(__dirname, '..', 'src', 'git-graph.html'));
 });
 
 app.on('window-all-closed', () => {

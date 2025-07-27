@@ -14,3 +14,9 @@ contextBridge.exposeInMainWorld('licenseAPI', {
   activate: (email: string, key: string) => ipcRenderer.invoke('license:activate', email, key),
   openPurchasePage: () => ipcRenderer.invoke('license:openPurchase'),
 });
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  onBranchChanged: (callback: (repo: any) => void) => {
+    ipcRenderer.on('branch-changed', (_, repo) => callback(repo));
+  }
+});

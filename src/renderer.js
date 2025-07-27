@@ -17,6 +17,12 @@ let isProcessing = false;
 // Initialize
 updateRepoInfo();
 
+// Listen for branch changes
+window.electronAPI.onBranchChanged((repo) => {
+  projectName.textContent = repo.name;
+  branchName.textContent = repo.branch;
+});
+
 // Event Listeners
 saveButton.addEventListener('click', handleSave);
 syncButton.addEventListener('click', handleSync);
