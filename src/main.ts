@@ -517,6 +517,98 @@ ipcMain.handle('git:sync', async () => {
   }
 });
 
+// Time travel handlers
+ipcMain.handle('git:timeTravelTo', async (_, commitHash: string) => {
+  if (!currentRepo.path) return { error: 'No repository selected' };
+  
+  try {
+    const git = simpleGit(currentRepo.path);
+    
+    // First time travel - save current state
+    if (!timeTravelState.isActive) {
+      // Get current branch
+      const branches = await git.branchLocal();
+      timeTravelState.originalBranch = branches.current;
+      
+      // Check for uncommitted changes
+      const status = await git.status();
+      if (!status.isClean()) {
+        // Stash changes
+        await git.stash(['push', '-m', 'Intentional time-travel stash']);
+        timeTravelState.hasStash = true;
+      }
+      
+      timeTravelState.isActive = true;
+    }
+    
+    // Checkout the commit
+    await git.checkout(commitHash);
+    timeTravelState.currentCommit = commitHash;
+    
+    // Get commit info
+    const log = await git.log([commitHash, '-n', '1']);
+    const commit = log.latest;
+    
+    if (!commit) {
+      throw new Error('Commit not found');
+    }
+    
+    return { 
+      success: true,
+      commit: {
+        hash: commit.hash,
+        message: commit.message,
+        author: commit.author_name,
+        date: commit.date
+      },
+      isTimeTravel: true,
+      originalBranch: timeTravelState.originalBranch
+    };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to travel to commit' };
+  }
+});
+
+ipcMain.handle('git:timeTravelReturn', async () => {
+  if (!currentRepo.path || !timeTravelState.isActive) {
+    return { error: 'Not in time travel mode' };
+  }
+  
+  try {
+    const git = simpleGit(currentRepo.path);
+    
+    // Return to original branch
+    await git.checkout(timeTravelState.originalBranch);
+    
+    // Pop stash if we had one
+    if (timeTravelState.hasStash) {
+      try {
+        await git.stash(['pop']);
+      } catch (err) {
+        console.error('Failed to pop stash:', err);
+        // Continue anyway - user can recover stash manually
+      }
+    }
+    
+    // Store original branch before reset
+    const originalBranch = timeTravelState.originalBranch;
+    
+    // Reset state
+    timeTravelState = {
+      isActive: false,
+      originalBranch: '',
+      hasStash: false,
+      currentCommit: ''
+    };
+    
+    handleBranchChange(originalBranch);
+    
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to return from time travel' };
+  }
+});
+
 ipcMain.handle('git:push', async () => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
@@ -735,6 +827,14 @@ ipcMain.handle('branches:open', async () => {
     return { error: error.message };
   }
 });
+
+// Track time travel state
+let timeTravelState = {
+  isActive: false,
+  originalBranch: '',
+  hasStash: false,
+  currentCommit: ''
+};
 
 // Branch operation handlers
 ipcMain.handle('git:createBranch', async (_, branchName: string) => {

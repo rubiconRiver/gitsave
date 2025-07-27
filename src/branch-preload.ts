@@ -5,7 +5,9 @@ contextBridge.exposeInMainWorld('branchAPI', {
   switchBranch: (name: string) => ipcRenderer.invoke('git:switchBranch', name),
   deleteBranch: (name: string) => ipcRenderer.invoke('git:deleteBranch', name),
   getBranches: () => ipcRenderer.invoke('git:getBranches'),
-  fetch: () => ipcRenderer.invoke('git:sync')
+  fetch: () => ipcRenderer.invoke('git:sync'),
+  timeTravelTo: (commitHash: string) => ipcRenderer.invoke('git:timeTravelTo', commitHash),
+  timeTravelReturn: () => ipcRenderer.invoke('git:timeTravelReturn')
 });
 
 // Store initial data when preload runs
