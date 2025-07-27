@@ -560,9 +560,16 @@
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
     
-    // Initial render
-    renderBranches();
-    updateVisualization();
+    // Initial render - wait a bit for data to arrive
+    setTimeout(() => {
+      if (allBranches.length > 0) {
+        renderBranches();
+      } else {
+        // If no data yet, try to refresh
+        refreshBranches();
+      }
+      updateVisualization();
+    }, 100);
   </script>
 </body>
 </html>
