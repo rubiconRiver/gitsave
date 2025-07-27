@@ -275,11 +275,17 @@
     
     // Parse git data from main process
     try {
+      console.log('Trying to get initial data...');
       gitData = window.initialData.get();
+      console.log('Got git data:', gitData);
       if (gitData) {
         currentBranch = gitData.currentBranch;
         allBranches = gitData.branchDetails || [];
         document.getElementById('currentBranchName').textContent = currentBranch;
+        console.log('Current branch:', currentBranch);
+        console.log('All branches:', allBranches);
+      } else {
+        console.log('No git data received');
       }
     } catch (error) {
       console.error('Failed to initialize:', error);
@@ -430,11 +436,18 @@
     
     // Create new branch
     async function createBranch() {
+      console.log('Create branch clicked');
       const name = prompt('Enter new branch name:');
-      if (!name) return;
+      console.log('Branch name:', name);
+      if (!name) {
+        console.log('No branch name provided');
+        return;
+      }
       
       try {
+        console.log('Creating branch:', name);
         const result = await window.branchAPI.createBranch(name);
+        console.log('Create branch result:', result);
         if (result.success) {
           currentBranch = name;
           document.getElementById('currentBranchName').textContent = currentBranch;
@@ -562,9 +575,11 @@
     
     // Initial render - wait a bit for data to arrive
     setTimeout(() => {
+      console.log('Initial render check - branches:', allBranches.length);
       if (allBranches.length > 0) {
         renderBranches();
       } else {
+        console.log('No branches yet, refreshing...');
         // If no data yet, try to refresh
         refreshBranches();
       }
