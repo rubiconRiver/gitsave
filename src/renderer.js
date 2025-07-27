@@ -8,7 +8,7 @@ const syncButton = document.getElementById('syncButton');
 const pushButton = document.getElementById('pushButton');
 const branchButton = document.getElementById('branchButton');
 const selectRepoButton = document.getElementById('selectRepoButton');
-const signOutButton = document.getElementById('signOutButton');
+const quitButton = document.getElementById('quitButton');
 const feedback = document.getElementById('feedback');
 
 // State
@@ -23,12 +23,22 @@ window.electronAPI.onBranchChanged((repo) => {
   branchName.textContent = repo.branch;
 });
 
+// Listen for repo loaded
+window.electronAPI.onRepoLoaded((repo) => {
+  projectName.textContent = repo.name;
+  branchName.textContent = repo.branch;
+  saveButton.disabled = false;
+  syncButton.disabled = false;
+  pushButton.disabled = false;
+});
+
 // Event Listeners
 saveButton.addEventListener('click', handleSave);
 syncButton.addEventListener('click', handleSync);
 pushButton.addEventListener('click', handlePush);
 branchButton.addEventListener('click', handleBranch);
 selectRepoButton.addEventListener('click', handleSelectRepo);
+quitButton.addEventListener('click', handleQuit);
 
 // Keyboard shortcut for save
 document.addEventListener('keydown', (e) => {
@@ -146,6 +156,14 @@ async function handleSelectRepo() {
     }
   } catch (error) {
     showError('Failed to select repository: ' + error.message);
+  }
+}
+
+async function handleQuit() {
+  try {
+    await window.gitAPI.quit();
+  } catch (error) {
+    console.error('Failed to quit:', error);
   }
 }
 

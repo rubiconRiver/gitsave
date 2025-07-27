@@ -25,9 +25,9 @@ const mb = menubar({
 
 // Track current repo info
 let currentRepo = {
-  path: '',
-  name: 'No Project',
-  branch: 'main'
+  path: store.get('lastRepoPath', '') as string,
+  name: store.get('lastRepoName', 'No Project') as string,
+  branch: store.get('lastRepoBranch', 'main') as string
 };
 
 mb.on('ready', async () => {
@@ -63,6 +63,11 @@ mb.on('ready', async () => {
     }
   }
   
+  // Load last project if available
+  if (currentRepo.path) {
+    loadRepository(currentRepo.path);
+  }
+  
   // Update tray title and git info periodically
   updateTrayTitle();
   updateGitInfo();
@@ -94,6 +99,7 @@ async function updateGitInfo() {
     
     if (branchInfo.current !== currentRepo.branch) {
       currentRepo.branch = branchInfo.current;
+      store.set('lastRepoBranch', currentRepo.branch);
       
       // Notify the renderer window about branch change
       if (mb.window) {
@@ -102,6 +108,48 @@ async function updateGitInfo() {
     }
   } catch (error) {
     console.error('Failed to update git info:', error);
+  }
+}
+
+async function loadRepository(repoPath: string) {
+  try {
+    const git = simpleGit(repoPath);
+    const isRepo = await git.checkIsRepo();
+    
+    if (isRepo) {
+      currentRepo.path = repoPath;
+      currentRepo.name = path.basename(repoPath);
+      const branch = await git.branchLocal();
+      currentRepo.branch = branch.current;
+      
+      // Update persistent storage
+      store.set('lastRepoPath', repoPath);
+      store.set('lastRepoName', currentRepo.name);
+      store.set('lastRepoBranch', currentRepo.branch);
+      
+      updateTrayTitle();
+      
+      // Notify renderer if window is open
+      if (mb.window) {
+        mb.window.webContents.send('repo-loaded', currentRepo);
+      }
+      
+      console.log('Loaded repository:', currentRepo);
+      return true;
+    } else {
+      console.error('Not a valid git repository:', repoPath);
+      // Clear invalid saved path
+      store.delete('lastRepoPath');
+      store.delete('lastRepoName');
+      store.delete('lastRepoBranch');
+      currentRepo.path = '';
+      currentRepo.name = 'No Project';
+      currentRepo.branch = 'main';
+      return false;
+    }
+  } catch (error) {
+    console.error('Failed to load repository:', error);
+    return false;
   }
 }
 
@@ -178,6 +226,12 @@ ipcMain.handle('repo:select', async () => {
         currentRepo.name = path.basename(repoPath);
         const branch = await git.branchLocal();
         currentRepo.branch = branch.current;
+        
+        // Save to persistent storage
+        store.set('lastRepoPath', repoPath);
+        store.set('lastRepoName', currentRepo.name);
+        store.set('lastRepoBranch', currentRepo.branch);
+        
         updateTrayTitle();
         return { success: true, repo: currentRepo };
       } else {
@@ -206,17 +260,84 @@ ipcMain.handle('license:openPurchase', () => {
   require('electron').shell.openExternal('https://gitsave.app/buy');
 });
 
-ipcMain.handle('branches:open', () => {
-  const branchWindow = new BrowserWindow({
-    width: 1400,
-    height: 800,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
-    }
-  });
+ipcMain.handle('app:quit', () => {
+  app.quit();
+});
+
+ipcMain.handle('branches:open', async () => {
+  // Get current branch data first
+  if (!currentRepo.path) {
+    return { error: 'No repository selected' };
+  }
   
-  branchWindow.loadFile(path.join(__dirname, '..', 'src', 'git-graph.html'));
+  try {
+    const git = simpleGit(currentRepo.path);
+    
+    // Get local branches (fast)
+    const branches = await git.branchLocal();
+    const log = await git.log(['--oneline', '-n', '50']);
+    
+    // Get raw graph output
+    const rawGraph = await git.raw(['log', '--graph', '--oneline', '--all', '-n', '20']);
+    
+    // Get branch details with last commit info
+    const branchDetails = [];
+    for (const branch of branches.all) {
+      try {
+        const branchLog = await git.log([branch, '-n', '1']);
+        const lastCommit = branchLog.latest;
+        branchDetails.push({
+          name: branch,
+          lastCommit: lastCommit ? {
+            hash: lastCommit.hash,
+            message: lastCommit.message,
+            author: lastCommit.author_name,
+            email: lastCommit.author_email,
+            date: lastCommit.date
+          } : null
+        });
+      } catch (err) {
+        console.error(`Failed to get details for branch ${branch}:`, err);
+      }
+    }
+    
+    console.log('Branch details:', branchDetails);
+    
+    // Save current git data
+    const gitData = {
+      currentBranch: branches.current,
+      branches: branches.all,
+      branchDetails: branchDetails,
+      log: log.all,
+      rawGraph: rawGraph,
+      repoPath: currentRepo.path
+    };
+    
+    // Create and show window
+    const branchWindow = new BrowserWindow({
+      width: 1400,
+      height: 800,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false,
+        additionalArguments: [JSON.stringify(gitData)]
+      }
+    });
+    
+    branchWindow.loadFile(path.join(__dirname, '..', 'src', 'branch-manager.html'));
+    
+    // Non-blocking fetch in background
+    git.fetch().then(() => {
+      console.log('Git fetch completed');
+      // Could send update to window if needed
+    }).catch(err => {
+      console.error('Git fetch failed:', err);
+    });
+    
+  } catch (error: any) {
+    console.error('Failed to open branches:', error);
+    return { error: error.message };
+  }
 });
 
 app.on('window-all-closed', () => {

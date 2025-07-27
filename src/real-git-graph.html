@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Git Graph - GitSave</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      overflow: hidden;
+    }
+    
+    #canvas {
+      width: 100vw;
+      height: 100vh;
+      cursor: grab;
+    }
+    
+    #canvas:active {
+      cursor: grabbing;
+    }
+    
+    .controls {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 15px;
+      z-index: 100;
+    }
+    
+    .current-branch {
+      color: #58a6ff;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    
+    .branch-list {
+      font-size: 12px;
+      color: #8b949e;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    .branch-item {
+      padding: 2px 0;
+    }
+    
+    .branch-item.current {
+      color: #3fb950;
+      font-weight: 600;
+    }
+    
+    pre {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 15px;
+      font-size: 11px;
+      font-family: monospace;
+      max-width: 600px;
+      max-height: 300px;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  
+  <div class="controls">
+    <div class="current-branch" id="currentBranch">Loading...</div>
+    <div class="branch-list" id="branchList"></div>
+  </div>
+  
+  <pre id="gitLog"></pre>
+  
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const currentBranchDiv = document.getElementById('currentBranch');
+    const branchListDiv = document.getElementById('branchList');
+    const gitLogPre = document.getElementById('gitLog');
+    
+    // Get git data from main process
+    let gitData = null;
+    let branches = [];
+    let currentBranch = '';
+    
+    try {
+      const args = process.argv.slice(-1)[0];
+      gitData = JSON.parse(args);
+      console.log('Received git data:', gitData);
+      
+      currentBranch = gitData.currentBranch;
+      branches = gitData.branches;
+      
+      // Update UI
+      currentBranchDiv.textContent = `Current: ${currentBranch}`;
+      document.title = `Git Graph - ${currentBranch} - GitSave`;
+      
+      // Show branch list
+      branchListDiv.innerHTML = branches.map(branch => 
+        `<div class="branch-item ${branch === currentBranch ? 'current' : ''}">${branch}</div>`
+      ).join('');
+      
+      // Show raw git graph if available
+      if (gitData.rawGraph) {
+        gitLogPre.textContent = gitData.rawGraph;
+      } else {
+        // Fallback to parsed log
+        gitLogPre.textContent = gitData.log.map(commit => 
+          `${commit.hash.substr(0, 7)} ${commit.message}`
+        ).join('\n');
+      }
+      
+    } catch (error) {
+      console.error('Failed to parse git data:', error);
+      currentBranchDiv.textContent = 'Error loading git data';
+    }
+    
+    // Canvas setup - Initialize variables FIRST
+    let offsetX = 100;
+    let offsetY = 300;
+    let scale = 1;
+    
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      render();
+    }
+    
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    
+    // Initial render after data is loaded
+    setTimeout(() => {
+      console.log('Initial render with branches:', branches);
+      render();
+    }, 100);
+    
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Debug: Draw a test rectangle to ensure canvas is working
+      ctx.fillStyle = '#ff0000';
+      ctx.fillRect(10, 10, 50, 50);
+      
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
+      
+      // Draw a reference point
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-5, -5, 10, 10);
+      
+      // For now, just draw branches as lines
+      let y = 0;
+      branches.forEach((branch, index) => {
+        const isCurrent = branch === currentBranch;
+        
+        console.log(`Drawing branch ${branch} at y=${y}`);
+        
+        // Branch line
+        ctx.strokeStyle = isCurrent ? '#3fb950' : '#58a6ff';
+        ctx.lineWidth = isCurrent ? 4 : 2;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(500, y);
+        ctx.stroke();
+        
+        // Branch name
+        ctx.fillStyle = isCurrent ? '#3fb950' : '#c9d1d9';
+        ctx.font = isCurrent ? 'bold 16px sans-serif' : '14px sans-serif';
+        ctx.fillText(branch, 10, y - 5);
+        
+        y += 50;
+      });
+      
+      // Draw actual git graph from log
+      if (gitData && gitData.log) {
+        ctx.fillStyle = '#666';
+        ctx.font = '10px monospace';
+        
+        gitData.log.forEach((commit, index) => {
+          const x = 100 + (index * 60);
+          const y = 100;
+          
+          // Commit dot
+          ctx.fillStyle = '#58a6ff';
+          ctx.beginPath();
+          ctx.arc(x, y, 4, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Hash
+          ctx.fillStyle = '#666';
+          ctx.fillText(commit.hash.substr(0, 7), x - 20, y + 20);
+        });
+      }
+      
+      ctx.restore();
+    }
+    
+    // Mouse handling for panning
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      dragStartX = e.clientX - offsetX;
+      dragStartY = e.clientY - offsetY;
+    });
+    
+    canvas.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        offsetX = e.clientX - dragStartX;
+        offsetY = e.clientY - dragStartY;
+        render();
+      }
+    });
+    
+    canvas.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+    
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      scale *= delta;
+      scale = Math.max(0.3, Math.min(scale, 3));
+      render();
+    });
+  </script>
+</body>
+</html>

@@ -133,16 +133,24 @@
     const infoTitle = document.getElementById('infoTitle');
     const infoContent = document.getElementById('infoContent');
     
-    // Load git history
-    const fs = require('fs');
-    const path = require('path');
+    // Get git data passed from main process
     let gitData = null;
-    
     try {
+      const args = process.argv.slice(-1)[0];
+      const passedData = JSON.parse(args);
+      console.log('Git data received:', passedData);
+      
+      // For now, still use the JSON file but we have the real data
+      const fs = require('fs');
+      const path = require('path');
       const dataPath = path.join(__dirname, '..', 'intentional.dev', 'git-history.json');
       gitData = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+      
+      // Update with current branch info
+      document.title = `Git Graph - ${passedData.currentBranch} - GitSave`;
+      
     } catch (error) {
-      console.error('Failed to load git history:', error);
+      console.error('Failed to load git data:', error);
     }
     
     // Canvas setup
