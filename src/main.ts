@@ -34,6 +34,7 @@ let currentRepo = {
 
 mb.on('ready', async () => {
   console.log('Intentional is ready!');
+  console.log('Initial currentRepo:', currentRepo);
   
   // Check license
   if (!LicenseManager.isLicensed()) {
@@ -94,8 +95,11 @@ mb.on('after-create-window', () => {
 });
 
 function updateTrayTitle() {
+  console.log('updateTrayTitle called, mb.tray exists:', !!mb.tray);
   if (mb.tray) {
     mb.tray.setTitle(`${currentRepo.name}/${currentRepo.branch}`);
+  } else {
+    console.log('WARNING: mb.tray is null!');
   }
 }
 
@@ -271,14 +275,18 @@ async function updateGitInfo() {
 }
 
 async function loadRepository(repoPath: string) {
+  console.log('loadRepository called with:', repoPath);
   try {
     const git = simpleGit(repoPath);
     const isRepo = await git.checkIsRepo();
+    console.log('Is valid repo:', isRepo);
     
     if (isRepo) {
       currentRepo.path = repoPath;
       currentRepo.name = path.basename(repoPath);
       const branch = await git.branchLocal();
+      console.log('Current git branch:', branch.current);
+      console.log('Stored branch was:', currentRepo.branch);
       
       // Update persistent storage
       store.set('lastRepoPath', repoPath);
