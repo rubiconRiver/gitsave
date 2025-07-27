@@ -1,6 +1,7 @@
 import { menubar } from 'menubar';
 import { app, BrowserWindow, ipcMain, Menu, MenuItem, dialog } from 'electron';
 import * as path from 'path';
+import * as fs from 'fs/promises';
 import simpleGit from 'simple-git';
 import Store from 'electron-store';
 import { LicenseManager } from './license';
@@ -102,6 +103,63 @@ function handleBranchChange(newBranch: string) {
   }
 }
 
+// Branch ownership management
+interface BranchOwnership {
+  branches: {
+    [branchName: string]: {
+      owner: string;
+      email: string;
+      createdAt: string;
+    }
+  }
+}
+
+async function getBranchOwnershipPath(): Promise<string> {
+  if (!currentRepo.path) throw new Error('No repository path');
+  return path.join(currentRepo.path, 'intentional.dev', 'branches', 'ownership.json');
+}
+
+async function ensureBranchesDirectory(): Promise<void> {
+  if (!currentRepo.path) return;
+  const branchesDir = path.join(currentRepo.path, 'intentional.dev', 'branches');
+  try {
+    await fs.mkdir(branchesDir, { recursive: true });
+  } catch (error) {
+    console.error('Failed to create branches directory:', error);
+  }
+}
+
+async function loadBranchOwnership(): Promise<BranchOwnership> {
+  try {
+    const filePath = await getBranchOwnershipPath();
+    const data = await fs.readFile(filePath, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    // File doesn't exist or is invalid, return empty
+    return { branches: {} };
+  }
+}
+
+async function saveBranchOwnership(ownership: BranchOwnership): Promise<void> {
+  try {
+    await ensureBranchesDirectory();
+    const filePath = await getBranchOwnershipPath();
+    await fs.writeFile(filePath, JSON.stringify(ownership, null, 2));
+  } catch (error) {
+    console.error('Failed to save branch ownership:', error);
+  }
+}
+
+async function recordBranchOwner(branchName: string, owner: string, email: string): Promise<void> {
+  const ownership = await loadBranchOwnership();
+  ownership.branches[branchName] = {
+    owner,
+    email,
+    createdAt: new Date().toISOString()
+  };
+  await saveBranchOwnership(ownership);
+}
+
 async function updateGitInfo() {
   if (!currentRepo.path) return;
   
@@ -193,41 +251,43 @@ ipcMain.handle('git:getBranchOwner', async (_, branchName: string) => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
   try {
+    // First check our ownership file
+    const ownership = await loadBranchOwnership();
+    if (ownership.branches[branchName]) {
+      return {
+        owner: ownership.branches[branchName].owner,
+        email: ownership.branches[branchName].email
+      };
+    }
+    
+    // If not in file, check git history (for existing branches)
     const git = simpleGit(currentRepo.path);
     
-    // Get the merge base with main to find where branch diverged
-    const mergeBase = await git.raw(['merge-base', 'main', branchName]);
-    const baseCommit = mergeBase.trim();
-    
-    // Get first commit after the merge base on this branch
-    const branchCommits = await git.raw(['rev-list', `${baseCommit}..${branchName}`, '--reverse']);
-    const firstUniqueCommit = branchCommits.split('\n')[0]?.trim();
-    
-    if (!firstUniqueCommit) {
-      // Branch has no unique commits, check the branch creation
-      const reflog = await git.raw(['reflog', 'show', branchName, '--format=%H %an <%ae>']);
-      const lastLine = reflog.split('\n').filter(line => line.trim()).pop();
-      if (lastLine) {
-        const match = lastLine.match(/^\w+ (.+)$/);
-        if (match) {
-          const [, authorInfo] = match;
-          const authorMatch = authorInfo.match(/^(.+) <(.+)>$/);
-          if (authorMatch) {
-            return {
-              owner: authorMatch[1],
-              email: authorMatch[2]
-            };
-          }
-        }
+    try {
+      // Get the merge base with main to find where branch diverged
+      const mergeBase = await git.raw(['merge-base', 'main', branchName]);
+      const baseCommit = mergeBase.trim();
+      
+      // Get first commit after the merge base on this branch
+      const branchCommits = await git.raw(['rev-list', `${baseCommit}..${branchName}`, '--reverse']);
+      const firstUniqueCommit = branchCommits.split('\n')[0]?.trim();
+      
+      if (firstUniqueCommit) {
+        // Get author of first unique commit
+        const commitInfo = await git.show([firstUniqueCommit, '--format=%an%n%ae', '--no-patch']);
+        const [author, email] = commitInfo.split('\n');
+        
+        // Save this info for future reference
+        await recordBranchOwner(branchName, author, email);
+        
+        return {
+          owner: author,
+          email: email
+        };
       }
-    } else {
-      // Get author of first unique commit
-      const commitInfo = await git.show([firstUniqueCommit, '--format=%an%n%ae', '--no-patch']);
-      const [author, email] = commitInfo.split('\n');
-      return {
-        owner: author,
-        email: email
-      };
+    } catch (gitError) {
+      // Branch might not have a common ancestor with main, or main might not exist
+      console.log('Could not determine branch owner from git history:', gitError);
     }
     
     return { owner: null, email: null };
@@ -594,7 +654,21 @@ ipcMain.handle('git:createBranch', async (_, branchName: string) => {
   
   try {
     const git = simpleGit(currentRepo.path);
+    
+    // Get current user info
+    const [userName, userEmail] = await Promise.all([
+      git.getConfig('user.name'),
+      git.getConfig('user.email')
+    ]);
+    
+    // Create the branch
     await git.checkoutBranch(branchName, currentRepo.branch);
+    
+    // Record ownership
+    if (userName.value && userEmail.value) {
+      await recordBranchOwner(branchName, userName.value, userEmail.value);
+    }
+    
     handleBranchChange(branchName);
     return { success: true, branch: branchName };
   } catch (error: any) {
@@ -628,6 +702,29 @@ ipcMain.handle('git:deleteBranch', async (_, branchName: string) => {
     return { success: true };
   } catch (error: any) {
     return { error: error.message || 'Failed to delete branch' };
+  }
+});
+
+ipcMain.handle('git:claimBranch', async (_, branchName: string) => {
+  if (!currentRepo.path) return { error: 'No repository selected' };
+  
+  try {
+    const git = simpleGit(currentRepo.path);
+    
+    // Get current user info
+    const [userName, userEmail] = await Promise.all([
+      git.getConfig('user.name'),
+      git.getConfig('user.email')
+    ]);
+    
+    if (userName.value && userEmail.value) {
+      await recordBranchOwner(branchName, userName.value, userEmail.value);
+      return { success: true, owner: userName.value, email: userEmail.value };
+    } else {
+      return { error: 'Git user not configured' };
+    }
+  } catch (error: any) {
+    return { error: error.message || 'Failed to claim branch' };
   }
 });
 

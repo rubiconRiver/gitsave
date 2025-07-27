@@ -360,9 +360,17 @@ async function checkBranchOwnership() {
         isMyBranch = true;
       } else {
         // Someone else's branch
-        branchOwnerEl.textContent = `${ownerInfo.owner}'s branch`;
+        branchOwnerEl.innerHTML = `${ownerInfo.owner}'s branch <span class="claim-link" id="claimLink">Claim this branch</span>`;
         branchOwnerEl.classList.add('show', 'not-mine');
         isMyBranch = false;
+        
+        // Add claim handler
+        setTimeout(() => {
+          const claimLink = document.getElementById('claimLink');
+          if (claimLink) {
+            claimLink.addEventListener('click', () => claimBranch(currentBranch));
+          }
+        }, 0);
       }
       
       // Update save button if there are changes
@@ -384,5 +392,23 @@ async function checkBranchOwnership() {
     console.error('Failed to check branch ownership:', error);
     branchOwnerEl.classList.remove('show');
     isMyBranch = true; // Default to allowing saves
+  }
+}
+
+// Claim a branch as yours
+async function claimBranch(branchName) {
+  if (confirm(`Do you want to claim ownership of the "${branchName}" branch?`)) {
+    try {
+      const result = await window.gitAPI.claimBranch(branchName);
+      if (result.success) {
+        showSuccess(`You now own the "${branchName}" branch`);
+        // Re-check ownership to update UI
+        await checkBranchOwnership();
+      } else {
+        showError(result.error || 'Failed to claim branch');
+      }
+    } catch (error) {
+      showError('Failed to claim branch: ' + error.message);
+    }
   }
 }
