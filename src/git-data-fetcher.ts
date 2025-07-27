@@ -1,8 +1,8 @@
 import simpleGit, { SimpleGit } from 'simple-git';
 
 // Constants
-const DEFAULT_COMMIT_LIMIT = 500;
-const DEFAULT_GRAPH_LIMIT = 100;
+const DEFAULT_COMMIT_LIMIT = 10000;  // Get much more history
+const DEFAULT_GRAPH_LIMIT = 1000;    // Show more in ASCII graph too
 
 export interface CommitInfo {
   hash: string;

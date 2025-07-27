@@ -392,6 +392,7 @@
     // Constants for visualization
     const NODE_SIZE = 20;
     const NODE_SIZE_SAVE = 8;  // Much smaller for save commits
+    const NODE_SIZE_BRANCH = 30;  // Larger for branch tips
     const NODE_BORDER_WIDTH = 2;
     const NODE_BORDER_WIDTH_SAVE = 1;
     const EDGE_WIDTH = 2;
@@ -402,14 +403,20 @@
     const MAX_ZOOM = 3;
     const FONT_SIZE = '10px';
     const FONT_SIZE_SAVE = '8px';
+    const FONT_SIZE_BRANCH = '12px';
     const LABEL_MAX_LENGTH = 30;
     const HASH_LENGTH = 7;
     
     // Layout
-    const TIME_AXIS_WIDTH = 1200;
     const TIME_AXIS_START = 100;
     const AUTHOR_ROW_HEIGHT = 100;
     const BASE_Y_POSITION = 100;
+    
+    // Time spacing constants
+    const PIXELS_PER_HOUR = 50;    // Last 24 hours
+    const PIXELS_PER_DAY = 100;    // Last 7 days
+    const PIXELS_PER_WEEK = 200;   // Last 30 days
+    const PIXELS_PER_MONTH = 100;  // Older than 30 days
     
     // Colors
     const NODE_COLOR = '#58a6ff';
@@ -782,6 +789,37 @@
              lowerMessage.startsWith('save:');
     }
     
+    // Calculate x position based on time with variable spacing
+    function calculateTimePosition(timestamp, now, oldestTimestamp) {
+      const msPerHour = 60 * 60 * 1000;
+      const msPerDay = 24 * msPerHour;
+      const msPerWeek = 7 * msPerDay;
+      
+      const age = now - timestamp;
+      let x = 0;
+      
+      if (age < msPerDay) {
+        // Last 24 hours - high resolution
+        x = (msPerDay - age) / msPerHour * PIXELS_PER_HOUR;
+      } else if (age < msPerWeek) {
+        // Last week - medium resolution
+        const daysAgo = (age - msPerDay) / msPerDay;
+        x = -24 * PIXELS_PER_HOUR - daysAgo * PIXELS_PER_DAY;
+      } else if (age < 30 * msPerDay) {
+        // Last month - lower resolution
+        const weeksAgo = (age - msPerWeek) / msPerWeek;
+        x = -24 * PIXELS_PER_HOUR - 6 * PIXELS_PER_DAY - weeksAgo * PIXELS_PER_WEEK;
+      } else {
+        // Older than a month - compressed
+        const monthsAgo = (age - 30 * msPerDay) / (30 * msPerDay);
+        x = -24 * PIXELS_PER_HOUR - 6 * PIXELS_PER_DAY - 3 * PIXELS_PER_WEEK - monthsAgo * PIXELS_PER_MONTH;
+      }
+      
+      // Shift everything to start at TIME_AXIS_START and make it positive
+      const maxX = calculateTimePosition(oldestTimestamp, now, oldestTimestamp);
+      return TIME_AXIS_START + (x - maxX);
+    }
+    
     function parseGitDataToCytoscape() {
       console.log('parseGitDataToCytoscape called, gitData:', gitData);
       const nodes = [];
@@ -806,9 +844,10 @@
         // Calculate time range
         const minTime = Math.min(...timestamps);
         const maxTime = Math.max(...timestamps);
-        const timeRange = maxTime - minTime;
+        const now = Date.now();
         
         console.log('Time range:', new Date(minTime), 'to', new Date(maxTime));
+        console.log('Current time:', new Date(now));
         
         // Create author Y positions
         const authorGroups = {};
@@ -820,16 +859,38 @@
         
         console.log('Author groups:', authorGroups);
         
+        // Build a map of which commits are branch tips
+        const branchTips = new Map();
+        if (gitData.branchCommitMap) {
+          gitData.branchCommitMap.forEach((commitHash, branchName) => {
+            if (!branchTips.has(commitHash)) {
+              branchTips.set(commitHash, []);
+            }
+            branchTips.get(commitHash).push(branchName);
+          });
+        }
+        console.log('Branch tips:', branchTips);
+        
         // Create nodes with pre-calculated positions
         gitData.allCommits.forEach((commit) => {
           const timestamp = new Date(commit.date).getTime();
           const isSave = isSaveCommit(commit.message);
+          const branches = branchTips.get(commit.hash) || [];
+          const isBranchTip = branches.length > 0;
           
           // Calculate position
           const x = timeRange > 0 ? 
             TIME_AXIS_START + ((timestamp - minTime) / timeRange) * TIME_AXIS_WIDTH : 
             TIME_AXIS_START;
           const y = BASE_Y_POSITION + (authorGroups[commit.author_name] || 0);
+          
+          // Determine node class
+          let nodeClass = 'intentional-commit';
+          if (isBranchTip) {
+            nodeClass = 'branch-tip';
+          } else if (isSave) {
+            nodeClass = 'save-commit';
+          }
           
           const node = {
             data: {
@@ -841,13 +902,43 @@
               message: commit.message,
               hash: commit.hash.substring(0, HASH_LENGTH),
               timestamp: timestamp,
-              isSave: isSave
+              isSave: isSave,
+              isBranchTip: isBranchTip,
+              branches: branches
             },
             position: { x, y },
-            classes: isSave ? 'save-commit' : 'intentional-commit'
+            classes: nodeClass
           };
           nodes.push(node);
           commitMap.set(commit.hash, commit);
+          
+          // Create branch label nodes
+          if (isBranchTip) {
+            branches.forEach((branchName, index) => {
+              const labelNode = {
+                data: {
+                  id: `branch-label-${branchName}`,
+                  label: branchName,
+                  parent: commit.hash,
+                  isBranchLabel: true
+                },
+                position: { x: x + 40, y: y - 30 - (index * 20) },
+                classes: 'branch-label'
+              };
+              nodes.push(labelNode);
+              
+              // Add edge from commit to label
+              edges.push({
+                data: {
+                  id: `edge-branch-${commit.hash}-${branchName}`,
+                  source: commit.hash,
+                  target: `branch-label-${branchName}`,
+                  isBranchEdge: true
+                },
+                classes: 'branch-edge'
+              });
+            });
+          }
         });
         
         // Create edges based on parent relationships
@@ -944,6 +1035,41 @@
               'opacity': 0.6
             }
           },
+          // Branch tip style
+          {
+            selector: 'node.branch-tip',
+            style: {
+              'background-color': '#3fb950',
+              'label': 'data(hash)',
+              'text-valign': 'bottom',
+              'text-halign': 'center',
+              'font-size': FONT_SIZE,
+              'color': TEXT_COLOR,
+              'width': NODE_SIZE_BRANCH,
+              'height': NODE_SIZE_BRANCH,
+              'border-width': NODE_BORDER_WIDTH + 1,
+              'border-color': '#2ea043'
+            }
+          },
+          // Branch label style
+          {
+            selector: 'node.branch-label',
+            style: {
+              'background-color': '#161b22',
+              'label': 'data(label)',
+              'text-valign': 'center',
+              'text-halign': 'center',
+              'font-size': FONT_SIZE_BRANCH,
+              'font-weight': 'bold',
+              'color': '#f0f6fc',
+              'width': 'label',
+              'height': 'label',
+              'padding': '6px',
+              'border-width': 2,
+              'border-color': '#3fb950',
+              'shape': 'round-rectangle'
+            }
+          },
           {
             selector: 'edge',
             style: {
@@ -952,6 +1078,16 @@
               'target-arrow-color': EDGE_COLOR,
               'target-arrow-shape': 'triangle',
               'curve-style': 'bezier'
+            }
+          },
+          // Branch label edge style
+          {
+            selector: 'edge.branch-edge',
+            style: {
+              'width': 1,
+              'line-color': '#3fb950',
+              'line-style': 'dashed',
+              'target-arrow-shape': 'none'
             }
           },
           {
@@ -977,13 +1113,24 @@
         const node = evt.target;
         const data = node.data();
         
-        if (data.isSave) {
+        if (data.isBranchLabel) {
+          // Don't change branch labels on hover
+          return;
+        } else if (data.isSave) {
           node.style({
             'background-color': '#58a6ff',
             'border-color': '#58a6ff',
             'opacity': 1,
             'width': NODE_SIZE_SAVE + 4,
             'height': NODE_SIZE_SAVE + 4,
+            'z-index': 999
+          });
+        } else if (data.isBranchTip) {
+          node.style({
+            'background-color': '#58a6ff',
+            'border-color': '#238636',
+            'width': NODE_SIZE_BRANCH + 4,
+            'height': NODE_SIZE_BRANCH + 4,
             'z-index': 999
           });
         } else {
@@ -999,13 +1146,23 @@
         const node = evt.target;
         const data = node.data();
         
-        if (data.isSave) {
+        if (data.isBranchLabel) {
+          // Don't change branch labels
+          return;
+        } else if (data.isSave) {
           node.style({
             'background-color': '#30363d',
             'border-color': '#21262d',
             'opacity': 0.6,
             'width': NODE_SIZE_SAVE,
             'height': NODE_SIZE_SAVE
+          });
+        } else if (data.isBranchTip) {
+          node.style({
+            'background-color': '#3fb950',
+            'border-color': '#2ea043',
+            'width': NODE_SIZE_BRANCH,
+            'height': NODE_SIZE_BRANCH
           });
         } else {
           node.style({
