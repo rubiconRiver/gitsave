@@ -247,9 +247,9 @@
     </div>
     
     <div class="actions">
-      <button class="btn btn-primary" onclick="createBranch()">New Branch</button>
-      <button class="btn" onclick="refreshBranches()">Refresh</button>
-      <button class="btn" onclick="fetchRemote()">Fetch</button>
+      <button class="btn btn-primary" id="newBranchBtn">New Branch</button>
+      <button class="btn" id="refreshBtn">Refresh</button>
+      <button class="btn" id="fetchBtn">Fetch</button>
     </div>
     
     <div class="search-box">
@@ -532,6 +532,11 @@
     document.getElementById('searchInput').addEventListener('input', (e) => {
       renderBranches(e.target.value);
     });
+    
+    // Button event listeners
+    document.getElementById('newBranchBtn').addEventListener('click', createBranch);
+    document.getElementById('refreshBtn').addEventListener('click', refreshBranches);
+    document.getElementById('fetchBtn').addEventListener('click', fetchRemote);
     
     // Helper functions
     function getColorForAuthor(author) {
