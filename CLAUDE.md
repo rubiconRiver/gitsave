@@ -69,7 +69,79 @@ git commit -m "Initial commit - GitSave setup complete"
 
 Explain: "Creating your first save point! From now on, GitSave will automatically save your code changes."
 
-### 6. Run GitSave
+### 6. Set Up GitHub Remote Repository
+
+Check if a remote is already configured:
+```bash
+git remote -v
+```
+
+If no remote exists, proceed with GitHub setup:
+
+#### Step 1: Check GitHub Authentication
+```bash
+# Check if user is already authenticated with GitHub CLI
+gh auth status
+```
+
+**If `gh` (GitHub CLI) is not installed:**
+- macOS: `brew install gh`
+- Explain: "This tool helps us connect to GitHub from your computer"
+
+**If not authenticated:**
+```bash
+gh auth login
+```
+- Select: GitHub.com
+- Select: HTTPS
+- Select: Login with a web browser
+- Explain: "We need to connect your computer to your GitHub account. I'll open a browser for you to sign in."
+
+#### Step 2: Create Repository
+```bash
+# Ask user for repository name (suggest: same as folder name)
+gh repo create [repository-name] --private --source=. --remote=origin --push
+```
+
+Explain: "I'm creating a private backup of your code on GitHub. Private means only you can see it."
+
+**If the above fails, guide through manual creation:**
+
+1. "Please go to https://github.com/new in your browser"
+2. "Sign in if needed (create account at github.com/signup if you don't have one)"
+3. "For 'Repository name', enter: [suggest current folder name]"
+4. "Select 'Private' to keep your code private"
+5. "Don't check any boxes below"
+6. "Click 'Create repository'"
+7. "Copy the URL from the page (looks like: https://github.com/username/repo-name.git)"
+
+Then run:
+```bash
+git remote add origin [paste-their-url-here]
+git push -u origin main
+```
+
+#### Step 3: Handle Common Issues
+
+**If push fails with authentication error:**
+1. "GitHub now requires a special password called a token. Let's create one:"
+2. "Go to https://github.com/settings/tokens/new"
+3. "Give it a name like 'GitSave'"
+4. "Check the 'repo' checkbox"
+5. "Scroll down and click 'Generate token'"
+6. "Copy the token (starts with ghp_)"
+7. "When Git asks for password, paste this token instead"
+
+**If push fails with 'main' branch error:**
+```bash
+git branch -M main
+git push -u origin main
+```
+
+#### Success Message
+"Great! Your code is now backed up on GitHub. GitSave will automatically sync your changes. You can view your code online at: https://github.com/[username]/[repository-name]"
+
+### 7. Run GitSave
 ```bash
 npm start
 ```
