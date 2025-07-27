@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('gitAPI', {
   getRepoInfo: () => ipcRenderer.invoke('repo:info'),
   selectRepo: () => ipcRenderer.invoke('repo:select'),
   openBranches: () => ipcRenderer.invoke('branches:open'),
+  showChanges: () => ipcRenderer.invoke('changes:preview'),
   quit: () => ipcRenderer.invoke('app:quit'),
 });
 

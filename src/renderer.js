@@ -44,11 +44,13 @@ window.electronAPI.onGitStatusChanged((statusInfo) => {
       saveButton.classList.add('not-my-branch');
     }
     status.textContent = `${statusInfo.filesChanged} file${statusInfo.filesChanged !== 1 ? 's' : ''} changed`;
+    status.classList.add('clickable');
   } else {
     saveButton.disabled = true;
     saveButton.textContent = '💾 No changes to save';
     saveButton.classList.remove('not-my-branch');
     status.textContent = 'No changes since last save';
+    status.classList.remove('clickable');
   }
 });
 
@@ -71,6 +73,7 @@ pushButton.addEventListener('click', handlePush);
 branchButton.addEventListener('click', handleBranch);
 selectRepoButton.addEventListener('click', handleSelectRepo);
 quitButton.addEventListener('click', handleQuit);
+status.addEventListener('click', handleShowChanges);
 
 // Keyboard shortcut for save
 document.addEventListener('keydown', (e) => {
@@ -218,6 +221,16 @@ async function handleQuit() {
     await window.gitAPI.quit();
   } catch (error) {
     console.error('Failed to quit:', error);
+  }
+}
+
+async function handleShowChanges() {
+  if (!hasChanges) return;
+  
+  try {
+    await window.gitAPI.showChanges();
+  } catch (error) {
+    console.error('Failed to show changes:', error);
   }
 }
 
