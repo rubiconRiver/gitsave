@@ -1,0 +1,54 @@
+{
+  "username": "garett",
+  "email": "garett.gelsinger@gmail.com",
+  "lastUpdated": "2025-01-28T10:00:00Z",
+  "tasks": [
+    {
+      "id": "task-001",
+      "title": "Design logo for Intentional",
+      "description": "Create a modern, minimalist logo that represents version control and intentionality",
+      "assignee": "Partner",
+      "assignedBy": "Garett",
+      "status": "pending",
+      "priority": "high",
+      "createdAt": "2025-01-28T10:00:00Z",
+      "updatedAt": "2025-01-28T10:00:00Z"
+    }
+  ],
+  "goals": [
+    {
+      "id": "goal-001",
+      "title": "Launch v1.0 with full collaboration features",
+      "description": "Complete the collaboration tools and prepare for public release",
+      "createdBy": "Garett",
+      "createdAt": "2025-01-28T09:00:00Z",
+      "status": "active"
+    },
+    {
+      "id": "goal-002",
+      "title": "Implement real-time sync using git branches",
+      "description": "Use personal collaboration branches for conflict-free sync",
+      "createdBy": "Garett",
+      "createdAt": "2025-01-28T09:00:00Z",
+      "status": "active"
+    }
+  ],
+  "builds": [
+    {
+      "id": "build-001",
+      "version": "v0.8.0",
+      "branch": "main",
+      "author": "Garett",
+      "timestamp": "2025-01-28T08:00:00Z",
+      "status": "success",
+      "notes": "Added auto-gitignore feature"
+    }
+  ],
+  "updates": [
+    {
+      "id": "update-001",
+      "message": "Working on collaboration panel UI - expanded window to 800px",
+      "timestamp": "2025-01-28T10:00:00Z"
+    }
+  ]
+}

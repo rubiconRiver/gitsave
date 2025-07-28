@@ -33,3 +33,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('git-status-changed', (_, statusInfo) => callback(statusInfo));
   }
 });
+
+contextBridge.exposeInMainWorld('collabAPI', {
+  read: () => ipcRenderer.invoke('collab:read'),
+  write: (data: any) => ipcRenderer.invoke('collab:write', data),
+  readTeam: () => ipcRenderer.invoke('collab:readTeam'),
+});

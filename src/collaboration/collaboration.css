@@ -318,3 +318,60 @@
 .collab-section-content::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
 }
+
+/* Form styles for dialogs */
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  background: var(--bg-primary);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+}
+
+.form-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+textarea.form-input {
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* Modal styles */
+#add-task-modal .modal-header {
+  color: var(--accent-primary);
+}
+
+#add-task-modal .modal-btn-primary {
+  background: var(--button-primary);
+  color: white;
+  border-color: var(--button-primary);
+}
+
+#add-task-modal .modal-btn-primary:hover {
+  background: var(--button-primary-hover);
+  border-color: var(--button-primary-hover);
+}

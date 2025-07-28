@@ -477,6 +477,9 @@ async function claimBranch(branchName) {
   }
 }
 
+// Collaboration state
+let collaborationData = null;
+
 // Load collaboration panel
 async function loadCollaborationPanel() {
   try {
@@ -521,16 +524,176 @@ function initializeCollaboration() {
   const addTaskBtn = document.getElementById('add-task-btn');
   if (addTaskBtn) {
     addTaskBtn.addEventListener('click', () => {
-      // TODO: Implement add task dialog
-      console.log('Add task clicked');
+      showAddTaskDialog();
     });
   }
   
-  // Load initial mock data
-  loadMockCollaborationData();
+  // Load real data
+  loadCollaborationData();
 }
 
+async function loadCollaborationData() {
+  try {
+    // Load user's own collaboration data
+    const result = await window.collabAPI.read();
+    if (result.success) {
+      collaborationData = result.data;
+      renderCollaborationData();
+    }
+    
+    // Load team data
+    const teamResult = await window.collabAPI.readTeam();
+    if (teamResult.success) {
+      renderTeamData(teamResult.data);
+    }
+  } catch (error) {
+    console.error('Failed to load collaboration data:', error);
+  }
+}
+
+function renderCollaborationData() {
+  if (!collaborationData) return;
+  
+  // Render goals
+  const goalsContainer = document.getElementById('project-goals');
+  if (goalsContainer && collaborationData.goals) {
+    if (collaborationData.goals.length === 0) {
+      goalsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📌</div>No project goals set</div>';
+    } else {
+      goalsContainer.innerHTML = collaborationData.goals.map(goal => `
+        <div class="goal-item" data-goal-id="${goal.id}">
+          <div class="goal-text">${escapeHtml(goal.title)}</div>
+        </div>
+      `).join('');
+    }
+  }
+  
+  // Render builds
+  const buildsContainer = document.getElementById('recent-builds');
+  if (buildsContainer && collaborationData.builds) {
+    if (collaborationData.builds.length === 0) {
+      buildsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏗️</div>No recent builds</div>';
+    } else {
+      buildsContainer.innerHTML = collaborationData.builds.map(build => `
+        <div class="build-item">
+          <div class="build-info">
+            <div class="build-version">${escapeHtml(build.version)}</div>
+            <div class="build-time">${formatTime(build.timestamp)} by ${escapeHtml(build.author)}</div>
+          </div>
+          <span class="build-status ${build.status}">${build.status}</span>
+        </div>
+      `).join('');
+    }
+  }
+  
+  // Render my tasks (tasks assigned by me to others)
+  const myTasksContainer = document.getElementById('my-tasks');
+  const myTaskCount = document.getElementById('my-task-count');
+  if (myTasksContainer && collaborationData.tasks) {
+    const myTasks = collaborationData.tasks.filter(task => task.assignedBy === collaborationData.username);
+    if (myTasks.length === 0) {
+      myTasksContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">✅</div>No tasks assigned by you</div>';
+    } else {
+      myTasksContainer.innerHTML = myTasks.map(task => `
+        <div class="task-item" data-task-id="${task.id}">
+          <div class="task-checkbox ${task.status === 'completed' ? 'checked' : ''}" onclick="toggleTask('${task.id}')"></div>
+          <div class="task-content">
+            <div class="task-text">${escapeHtml(task.title)}</div>
+            <div class="task-assignee">To: ${escapeHtml(task.assignee)}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+    if (myTaskCount) {
+      myTaskCount.textContent = myTasks.length > 0 ? myTasks.length.toString() : '';
+    }
+  }
+}
+
+function renderTeamData(teamMembers) {
+  // Render team tasks (tasks assigned to me by others)
+  const teamTasksContainer = document.getElementById('team-tasks');
+  const teamTaskCount = document.getElementById('team-task-count');
+  
+  if (teamTasksContainer) {
+    const allTeamTasks = [];
+    teamMembers.forEach(member => {
+      if (member.tasks) {
+        const tasksForMe = member.tasks.filter(task => 
+          task.assignee === 'Garett' || task.assignee === collaborationData?.username
+        );
+        allTeamTasks.push(...tasksForMe.map(task => ({ ...task, fromMember: member.username })));
+      }
+    });
+    
+    if (allTeamTasks.length === 0) {
+      teamTasksContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">👥</div>No tasks assigned to you</div>';
+    } else {
+      teamTasksContainer.innerHTML = allTeamTasks.map(task => `
+        <div class="task-item team-task" data-task-id="${task.id}" data-from="${task.fromMember}">
+          <div class="task-checkbox ${task.status === 'completed' ? 'checked' : ''}" onclick="toggleTeamTask('${task.id}', '${task.fromMember}')"></div>
+          <div class="task-content">
+            <div class="task-text">${escapeHtml(task.title)}</div>
+            <div class="task-assignee for-me">From: ${escapeHtml(task.assignedBy)}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+    if (teamTaskCount) {
+      teamTaskCount.textContent = allTeamTasks.length > 0 ? allTeamTasks.length.toString() : '';
+    }
+  }
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function formatTime(timestamp) {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  
+  if (hours < 1) {
+    const minutes = Math.floor(diff / (1000 * 60));
+    return `${minutes}m ago`;
+  } else if (hours < 24) {
+    return `${hours}h ago`;
+  } else {
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }
+}
+
+// Task management functions
+window.toggleTask = async function(taskId) {
+  if (!collaborationData) return;
+  
+  const task = collaborationData.tasks.find(t => t.id === taskId);
+  if (task) {
+    task.status = task.status === 'completed' ? 'pending' : 'completed';
+    task.updatedAt = new Date().toISOString();
+    
+    // Save changes
+    const result = await window.collabAPI.write(collaborationData);
+    if (result.success) {
+      renderCollaborationData();
+    }
+  }
+};
+
+window.toggleTeamTask = async function(taskId, fromMember) {
+  // For team tasks, we'd need to implement a way to update the other person's file
+  // For now, just show a message
+  console.log('Toggle team task:', taskId, 'from:', fromMember);
+  alert('Team task status updates coming soon!');
+};
+
 function loadMockCollaborationData() {
+  // Keeping the old function for reference, but not using it
   // Mock goals
   const goalsContainer = document.getElementById('project-goals');
   if (goalsContainer) {
@@ -602,13 +765,94 @@ async function refreshCollaboration() {
     refreshBtn.style.animation = 'spin 1s linear infinite';
   }
   
-  // TODO: Implement actual refresh with git show
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  // Reload collaboration data
+  await loadCollaborationData();
   
   if (refreshBtn) {
     refreshBtn.style.animation = '';
   }
 }
+
+// Task dialog functions
+async function showAddTaskDialog() {
+  // Check if dialog already exists
+  let modal = document.getElementById('add-task-modal');
+  if (!modal) {
+    // Load dialog HTML
+    const response = await fetch('collaboration/add-task-dialog.html');
+    const html = await response.text();
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div.firstElementChild);
+    modal = document.getElementById('add-task-modal');
+  }
+  
+  // Show modal
+  modal.classList.add('show');
+  
+  // Focus on title input
+  setTimeout(() => {
+    document.getElementById('task-title').focus();
+  }, 100);
+}
+
+window.closeAddTaskDialog = function() {
+  const modal = document.getElementById('add-task-modal');
+  if (modal) {
+    modal.classList.remove('show');
+    // Clear form
+    document.getElementById('task-title').value = '';
+    document.getElementById('task-description').value = '';
+    document.getElementById('task-priority').value = 'medium';
+  }
+};
+
+window.createTask = async function() {
+  const title = document.getElementById('task-title').value.trim();
+  if (!title) {
+    alert('Please enter a task title');
+    return;
+  }
+  
+  const newTask = {
+    id: `task-${Date.now()}`,
+    title: title,
+    description: document.getElementById('task-description').value.trim(),
+    assignee: document.getElementById('task-assignee').value,
+    assignedBy: collaborationData?.username || 'Garett',
+    status: 'pending',
+    priority: document.getElementById('task-priority').value,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  
+  // Add to collaboration data
+  if (!collaborationData) {
+    collaborationData = {
+      username: 'garett',
+      email: 'garett.gelsinger@gmail.com',
+      tasks: [],
+      goals: [],
+      builds: [],
+      updates: []
+    };
+  }
+  
+  if (!collaborationData.tasks) {
+    collaborationData.tasks = [];
+  }
+  
+  collaborationData.tasks.push(newTask);
+  
+  // Save
+  const result = await window.collabAPI.write(collaborationData);
+  if (result.success) {
+    closeAddTaskDialog();
+    renderCollaborationData();
+  } else {
+    alert('Failed to create task: ' + (result.error || 'Unknown error'));
+  }
+};
 
 // Load collaboration panel on startup
 loadCollaborationPanel();
