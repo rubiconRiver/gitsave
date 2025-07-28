@@ -431,11 +431,9 @@
     const AUTHOR_ROW_HEIGHT = 100;
     const BASE_Y_POSITION = 100;
     
-    // Time spacing constants
-    const PIXELS_PER_HOUR = 50;    // Last 24 hours
-    const PIXELS_PER_DAY = 100;    // Last 7 days
-    const PIXELS_PER_WEEK = 200;   // Last 30 days
-    const PIXELS_PER_MONTH = 100;  // Older than 30 days
+    // Time spacing constants - rigid timeline
+    const PIXELS_PER_HOUR = 100;   // Fixed spacing for hours
+    const HOURS_TO_SHOW = 24;      // Show last 24 hours by default
     
     // Colors
     const NODE_COLOR = '#58a6ff';
@@ -808,33 +806,16 @@
              lowerMessage.startsWith('save:');
     }
     
-    // Calculate x position based on time with variable spacing
+    // Calculate x position based on time - rigid timeline with fixed hour intervals
     function calculateTimePosition(timestamp, now) {
       const msPerHour = 60 * 60 * 1000;
-      const msPerDay = 24 * msPerHour;
-      const msPerWeek = 7 * msPerDay;
+      const hoursAgo = (now - timestamp) / msPerHour;
       
-      const age = now - timestamp;
-      let x = 0;
+      // Position commits on a continuous timeline
+      // Each hour gets PIXELS_PER_HOUR pixels of space
+      const x = TIME_AXIS_START + (HOURS_TO_SHOW * PIXELS_PER_HOUR) - (hoursAgo * PIXELS_PER_HOUR);
       
-      if (age < msPerDay) {
-        // Last 24 hours - high resolution
-        x = (msPerDay - age) / msPerHour * PIXELS_PER_HOUR;
-      } else if (age < msPerWeek) {
-        // Last week - medium resolution
-        const daysAgo = (age - msPerDay) / msPerDay;
-        x = 24 * PIXELS_PER_HOUR + daysAgo * PIXELS_PER_DAY;
-      } else if (age < 30 * msPerDay) {
-        // Last month - lower resolution
-        const weeksAgo = (age - msPerWeek) / msPerWeek;
-        x = 24 * PIXELS_PER_HOUR + 6 * PIXELS_PER_DAY + weeksAgo * PIXELS_PER_WEEK;
-      } else {
-        // Older than a month - compressed
-        const monthsAgo = (age - 30 * msPerDay) / (30 * msPerDay);
-        x = 24 * PIXELS_PER_HOUR + 6 * PIXELS_PER_DAY + 3 * PIXELS_PER_WEEK + monthsAgo * PIXELS_PER_MONTH;
-      }
-      
-      return TIME_AXIS_START + x;
+      return x;
     }
     
     function parseGitDataToCytoscape() {
@@ -842,6 +823,7 @@
       const nodes = [];
       const edges = [];
       const commitMap = new Map();
+      const authorGroups = {};
       
       // Parse commits from allCommits data
       if (gitData && gitData.allCommits) {
@@ -867,7 +849,6 @@
         console.log('Current time:', new Date(now));
         
         // Create author Y positions
-        const authorGroups = {};
         let yOffset = 0;
         Array.from(authorSet).sort().forEach(author => {
           authorGroups[author] = yOffset;
@@ -941,17 +922,6 @@
                 classes: 'branch-label'
               };
               nodes.push(labelNode);
-              
-              // Add edge from commit to label
-              edges.push({
-                data: {
-                  id: `edge-branch-${commit.hash}-${branchName}`,
-                  source: commit.hash,
-                  target: `branch-label-${branchName}`,
-                  isBranchEdge: true
-                },
-                classes: 'branch-edge'
-              });
             });
           }
         });
@@ -978,33 +948,67 @@
         console.log('Created', nodes.length, 'nodes and', edges.length, 'edges');
         console.log(`Commits: ${intentionalCount} intentional, ${saveCount} saves`);
         
-        // Add time markers
-        const timeMarkers = [
-          { label: 'Today', time: now - 0, class: 'time-marker-today' },
-          { label: 'Yesterday', time: now - 24 * 60 * 60 * 1000, class: 'time-marker' },
-          { label: '1 week ago', time: now - 7 * 24 * 60 * 60 * 1000, class: 'time-marker' },
-          { label: '1 month ago', time: now - 30 * 24 * 60 * 60 * 1000, class: 'time-marker' }
-        ];
+        // Add hourly time markers for the visible timeline
+        const msPerHour = 60 * 60 * 1000;
+        const currentHour = new Date(now);
+        currentHour.setMinutes(0, 0, 0); // Round down to the hour
         
-        timeMarkers.forEach((marker, index) => {
-          if (marker.time >= minTime) {
-            const x = calculateTimePosition(marker.time, now);
+        // Create hour markers for the visible range and some buffer
+        for (let h = -48; h <= 2; h++) {
+          const markerTime = currentHour.getTime() - (h * msPerHour);
+          const x = calculateTimePosition(markerTime, now);
+          
+          // Only add markers that would be visible
+          if (x > -100 && x < 3000) {
+            const markerDate = new Date(markerTime);
+            const isToday = markerDate.toDateString() === new Date(now).toDateString();
+            const isNow = Math.abs(h) < 1;
+            
+            let label = '';
+            let markerClass = 'time-marker';
+            
+            if (isNow) {
+              label = 'Now';
+              markerClass = 'time-marker-now';
+            } else if (h % 6 === 0) { // Show label every 6 hours
+              if (isToday) {
+                label = markerDate.toLocaleTimeString([], { hour: 'numeric', hour12: true });
+              } else {
+                label = markerDate.toLocaleDateString([], { weekday: 'short', hour: 'numeric', hour12: true });
+              }
+              markerClass = h % 24 === 0 ? 'time-marker-day' : 'time-marker';
+            }
+            
+            if (label) {
+              nodes.push({
+                data: {
+                  id: `time-marker-${h}`,
+                  label: label,
+                  isTimeMarker: true
+                },
+                position: { x, y: 50 },
+                classes: markerClass,
+                selectable: false,
+                grabbable: false
+              });
+            }
+            
+            // Add vertical line for each hour
             nodes.push({
               data: {
-                id: `time-marker-${index}`,
-                label: marker.label,
-                isTimeMarker: true
+                id: `time-line-${h}`,
+                isTimeLine: true
               },
-              position: { x, y: 50 },
-              classes: marker.class,
+              position: { x, y: 300 },
+              classes: 'time-line',
               selectable: false,
               grabbable: false
             });
           }
-        });
+        }
       }
       
-      return { nodes, edges };
+      return { nodes, edges, authorGroups };
     }
     
     function updateVisualization() {
@@ -1017,7 +1021,7 @@
       }
       
       // Parse git data
-      const { nodes, edges } = parseGitDataToCytoscape();
+      const { nodes, edges, authorGroups } = parseGitDataToCytoscape();
       console.log('Parsed nodes:', nodes.length, 'edges:', edges.length);
       
       if (nodes.length === 0) {
@@ -1120,16 +1124,6 @@
               'curve-style': 'bezier'
             }
           },
-          // Branch label edge style
-          {
-            selector: 'edge.branch-edge',
-            style: {
-              'width': 1,
-              'line-color': '#3fb950',
-              'line-style': 'dashed',
-              'target-arrow-shape': 'none'
-            }
-          },
           // Time marker style
           {
             selector: 'node.time-marker',
@@ -1145,9 +1139,25 @@
               'shape': 'rectangle'
             }
           },
-          // Today marker style
+          // Now marker style
           {
-            selector: 'node.time-marker-today',
+            selector: 'node.time-marker-now',
+            style: {
+              'background-color': 'transparent',
+              'label': 'data(label)',
+              'text-valign': 'top',
+              'text-halign': 'center',
+              'font-size': '11px',
+              'font-weight': 'bold',
+              'color': '#f85149',
+              'width': 1,
+              'height': 1,
+              'shape': 'rectangle'
+            }
+          },
+          // Day marker style
+          {
+            selector: 'node.time-marker-day',
             style: {
               'background-color': 'transparent',
               'label': 'data(label)',
@@ -1155,10 +1165,21 @@
               'text-halign': 'center',
               'font-size': '10px',
               'font-weight': 'bold',
-              'color': '#f85149',
+              'color': '#58a6ff',
               'width': 1,
               'height': 1,
               'shape': 'rectangle'
+            }
+          },
+          // Time line style (vertical lines)
+          {
+            selector: 'node.time-line',
+            style: {
+              'background-color': '#21262d',
+              'width': 1,
+              'height': 600,
+              'shape': 'rectangle',
+              'opacity': 0.3
             }
           },
           {
@@ -1184,8 +1205,8 @@
         const node = evt.target;
         const data = node.data();
         
-        if (data.isBranchLabel || data.isTimeMarker) {
-          // Don't change branch labels or time markers on hover
+        if (data.isBranchLabel || data.isTimeMarker || data.isTimeLine) {
+          // Don't change branch labels, time markers, or time lines on hover
           return;
         } else if (data.isSave) {
           node.style({
@@ -1217,8 +1238,8 @@
         const node = evt.target;
         const data = node.data();
         
-        if (data.isBranchLabel || data.isTimeMarker) {
-          // Don't change branch labels or time markers
+        if (data.isBranchLabel || data.isTimeMarker || data.isTimeLine) {
+          // Don't change branch labels, time markers, or time lines
           return;
         } else if (data.isSave) {
           node.style({
@@ -1252,17 +1273,31 @@
         data: n.data()
       })));
       
-      // Fit to viewport
-      cy.fit();
-      console.log('Called cy.fit() to fit graph to viewport');
+      // Focus on the last 24 hours instead of fitting everything
+      const viewportWidth = container.offsetWidth;
+      const viewportHeight = container.offsetHeight;
+      
+      // Center on the 12-hour mark (middle of the 24-hour window)
+      const centerX = TIME_AXIS_START + (12 * PIXELS_PER_HOUR);
+      const centerY = BASE_Y_POSITION + (AUTHOR_ROW_HEIGHT * Object.keys(authorGroups || {}).length / 2);
+      
+      // Set zoom level to show approximately 24 hours
+      const zoomLevel = viewportWidth / (24 * PIXELS_PER_HOUR);
+      
+      cy.viewport({
+        zoom: zoomLevel,
+        pan: { x: viewportWidth / 2 - (centerX * zoomLevel), y: viewportHeight / 2 - (centerY * zoomLevel) }
+      });
+      
+      console.log('Focused on 24-hour window with zoom:', zoomLevel);
       
       // Add click handler for time travel
       cy.on('click', 'node', function(evt) {
         const node = evt.target;
         const data = node.data();
         
-        // Only allow clicking on commits, not labels or markers
-        if (!data.isBranchLabel && !data.isTimeMarker && data.id && data.id.length > 20) {
+        // Only allow clicking on commits, not labels, markers, or lines
+        if (!data.isBranchLabel && !data.isTimeMarker && !data.isTimeLine && data.id && data.id.length > 20) {
           handleCommitClick(data);
         }
       });
