@@ -22,7 +22,7 @@ const mb = menubar({
   preloadWindow: true,
   showDockIcon: false,
   tooltip: 'Intentional',
-  icon: path.join(__dirname, '..', 'assets', 'icon.png')
+  icon: path.join(__dirname, '..', 'assets', 'menubar-icon.png')
 });
 
 // Track current repo info
@@ -36,35 +36,35 @@ mb.on('ready', async () => {
   console.log('Intentional is ready!');
   console.log('Initial currentRepo:', currentRepo);
   
-  // Check license
-  if (!LicenseManager.isLicensed()) {
-    const result = await dialog.showMessageBox({
-      type: 'info',
-      title: 'Intentional - License Required',
-      message: 'Please enter your license key to activate Intentional',
-      buttons: ['Enter License', 'Buy License', 'Dev Mode', 'Quit']
-    });
-    
-    if (result.response === 0) {
-      // Show license dialog
-      mb.window?.loadFile(path.join(__dirname, '..', 'src', 'license.html'));
-    } else if (result.response === 1) {
-      // Open purchase page
-      require('electron').shell.openExternal('https://getintentional.dev/buy');
-      app.quit();
-    } else if (result.response === 2) {
-      // Dev mode - skip license check
-      console.log('Running in dev mode - license bypassed');
-      // Continue normal startup
-    } else {
-      app.quit();
-      return;
-    }
-    
-    if (result.response !== 2) {
-      return;
-    }
-  }
+  // Check license - TEMPORARILY BYPASSED
+  // if (!LicenseManager.isLicensed()) {
+  //   const result = await dialog.showMessageBox({
+  //     type: 'info',
+  //     title: 'Intentional - License Required',
+  //     message: 'Please enter your license key to activate Intentional',
+  //     buttons: ['Enter License', 'Buy License', 'Dev Mode', 'Quit']
+  //   });
+  //   
+  //   if (result.response === 0) {
+  //     // Show license dialog
+  //     mb.window?.loadFile(path.join(__dirname, '..', 'src', 'license.html'));
+  //   } else if (result.response === 1) {
+  //     // Open purchase page
+  //     require('electron').shell.openExternal('https://getintentional.dev/buy');
+  //     app.quit();
+  //   } else if (result.response === 2) {
+  //     // Dev mode - skip license check
+  //     console.log('Running in dev mode - license bypassed');
+  //     // Continue normal startup
+  //   } else {
+  //     app.quit();
+  //     return;
+  //   }
+  //   
+  //   if (result.response !== 2) {
+  //     return;
+  //   }
+  // }
   
   // Load last project if available
   if (currentRepo.path) {
@@ -97,7 +97,14 @@ mb.on('after-create-window', () => {
 function updateTrayTitle() {
   console.log('updateTrayTitle called, mb.tray exists:', !!mb.tray);
   if (mb.tray) {
-    mb.tray.setTitle(`${currentRepo.name}/${currentRepo.branch}`);
+    // Show default text if no project is selected
+    if (!currentRepo.name || currentRepo.name === 'No Project') {
+      mb.tray.setTitle('Intentional - choose a project');
+    } else {
+      mb.tray.setTitle(`${currentRepo.name}/${currentRepo.branch}`);
+    }
+    // Ensure icon is always visible
+    mb.tray.setImage(path.join(__dirname, '..', 'assets', 'menubar-icon.png'));
   } else {
     console.log('WARNING: mb.tray is null!');
   }
