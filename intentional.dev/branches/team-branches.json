@@ -1,0 +1,11 @@
+{
+  "teamBranches": [
+    "main",
+    "master"
+  ],
+  "teamBranchPrefixes": [
+    "release/",
+    "hotfix/"
+  ],
+  "description": "Branches that belong to the team rather than individual developers"
+}

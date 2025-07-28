@@ -152,6 +152,20 @@ async function loadBranchOwnership(): Promise<BranchOwnership> {
   }
 }
 
+async function loadTeamBranches(): Promise<{ teamBranches: string[], teamBranchPrefixes: string[] }> {
+  try {
+    const filePath = path.join(currentRepo.path, 'intentional.dev', 'branches', 'team-branches.json');
+    const data = await fs.readFile(filePath, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    // File doesn't exist or is invalid, return defaults
+    return {
+      teamBranches: ['main', 'master'],
+      teamBranchPrefixes: ['release/', 'hotfix/']
+    };
+  }
+}
+
 async function saveBranchOwnership(ownership: BranchOwnership): Promise<void> {
   try {
     await ensureBranchesDirectory();
@@ -798,10 +812,14 @@ ipcMain.handle('branches:open', async () => {
     const fetcher = new GitDataFetcher(currentRepo.path);
     const gitData = await fetcher.fetchComprehensiveData();
     
+    // Load team branches configuration
+    const teamBranchConfig = await loadTeamBranches();
+    
     console.log('Fetched git data:');
     console.log('- Branches:', gitData.branches.length);
     console.log('- All commits:', gitData.allCommits.length);
     console.log('- Branch details:', gitData.branchDetails.length);
+    console.log('- Team branches:', teamBranchConfig);
     
     // Create and show window
     const branchWindow = new BrowserWindow({
@@ -816,9 +834,17 @@ ipcMain.handle('branches:open', async () => {
     
     branchWindow.loadFile(path.join(__dirname, '..', 'src', 'branch-manager.html'));
     
+    // Load branch ownership data
+    const branchOwnership = await loadBranchOwnership();
+    
     // Send data after window is ready
     branchWindow.webContents.once('did-finish-load', () => {
-      branchWindow.webContents.send('branch-window-data', gitData);
+      branchWindow.webContents.send('branch-window-data', {
+        ...gitData,
+        teamBranches: teamBranchConfig.teamBranches,
+        teamBranchPrefixes: teamBranchConfig.teamBranchPrefixes,
+        branchOwnership: branchOwnership.branches
+      });
     });
     
     // Non-blocking fetch in background
@@ -972,10 +998,15 @@ ipcMain.handle('git:getBranches', async () => {
       }
     }
     
+    // Load team branches configuration
+    const teamBranchConfig = await loadTeamBranches();
+    
     return { 
       success: true, 
       currentBranch: branches.current,
-      branches: branchDetails 
+      branches: branchDetails,
+      teamBranches: teamBranchConfig.teamBranches,
+      teamBranchPrefixes: teamBranchConfig.teamBranchPrefixes
     };
   } catch (error: any) {
     return { error: error.message || 'Failed to get branches' };

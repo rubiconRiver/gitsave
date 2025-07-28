@@ -97,6 +97,13 @@
       color: #8b949e;
       font-size: 12px;
       text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: background-color 0.2s;
+    }
+    
+    .collaborator-header:hover {
+      background: #161b22;
     }
     
     .collaborator-avatar {
@@ -109,6 +116,48 @@
       justify-content: center;
       font-size: 10px;
       font-weight: 600;
+    }
+    
+    .expand-indicator {
+      margin-left: auto;
+      font-size: 10px;
+      transition: transform 0.2s;
+    }
+    
+    .expand-indicator.expanded {
+      transform: rotate(90deg);
+    }
+    
+    .branch-count {
+      font-size: 11px;
+      color: #484f58;
+      margin-left: 5px;
+      font-weight: normal;
+    }
+    
+    .branch-items {
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    
+    .branch-items.collapsed {
+      max-height: 300px; /* Approximately 3 branches */
+    }
+    
+    .branch-items.expanded {
+      max-height: 2000px;
+    }
+    
+    .more-indicator {
+      text-align: center;
+      padding: 5px;
+      font-size: 11px;
+      color: #484f58;
+      cursor: pointer;
+    }
+    
+    .more-indicator:hover {
+      color: #8b949e;
     }
     
     .branch-item {
@@ -143,6 +192,22 @@
       justify-content: space-between;
       font-size: 12px;
       color: #8b949e;
+    }
+    
+    .ownership-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #3fb950;
+      margin-right: 5px;
+      vertical-align: middle;
+      title: "Branch has explicit ownership";
+    }
+    
+    .ownership-indicator.inferred {
+      background: #8b949e;
+      title: "Ownership inferred from commits";
     }
     
     .branch-message {
@@ -445,6 +510,10 @@
     let gitData = null;
     let currentBranch = '';
     let allBranches = [];
+    let expandedAuthors = new Set(); // Track which authors are expanded
+    let teamBranchNames = ['main', 'master']; // Default team branches
+    let teamBranchPrefixes = ['release/', 'hotfix/']; // Default team branch prefixes
+    let branchOwnership = {}; // Map of branch name to owner info
     
     // Parse git data from main process
     try {
@@ -454,9 +523,15 @@
       if (gitData) {
         currentBranch = gitData.currentBranch;
         allBranches = gitData.branchDetails || [];
+        teamBranchNames = gitData.teamBranches || teamBranchNames;
+        teamBranchPrefixes = gitData.teamBranchPrefixes || teamBranchPrefixes;
+        branchOwnership = gitData.branchOwnership || {};
         document.getElementById('currentBranchName').textContent = currentBranch;
         console.log('Current branch:', currentBranch);
         console.log('All branches:', allBranches);
+        console.log('Team branches:', teamBranchNames);
+        console.log('Team branch prefixes:', teamBranchPrefixes);
+        console.log('Branch ownership:', branchOwnership);
       } else {
         console.log('No git data received');
       }
@@ -464,21 +539,29 @@
       console.error('Failed to initialize:', error);
     }
     
-    // Group branches by author
+    // Group branches by owner (using ownership data)
     function groupBranchesByAuthor() {
       const grouped = {};
       
       allBranches.forEach(branch => {
-        const author = branch.lastCommit?.author || 'Unknown';
-        if (!grouped[author]) {
-          grouped[author] = [];
+        // First check if we have ownership data for this branch
+        let owner = 'Unknown';
+        if (branchOwnership[branch.name]) {
+          owner = branchOwnership[branch.name].owner;
+        } else if (branch.lastCommit?.author) {
+          // Fall back to last commit author if no ownership data
+          owner = branch.lastCommit.author;
         }
-        grouped[author].push(branch);
+        
+        if (!grouped[owner]) {
+          grouped[owner] = [];
+        }
+        grouped[owner].push(branch);
       });
       
       // Sort branches within each group by date (most recent first)
-      Object.keys(grouped).forEach(author => {
-        grouped[author].sort((a, b) => {
+      Object.keys(grouped).forEach(owner => {
+        grouped[owner].sort((a, b) => {
           const dateA = new Date(a.lastCommit?.date || 0);
           const dateB = new Date(b.lastCommit?.date || 0);
           return dateB - dateA;
@@ -488,6 +571,14 @@
       return grouped;
     }
     
+    // Helper function to check if a branch is a team branch
+    function isTeamBranch(branchName) {
+      if (teamBranchNames.includes(branchName)) {
+        return true;
+      }
+      return teamBranchPrefixes.some(prefix => branchName.startsWith(prefix));
+    }
+    
     // Render branch list
     function renderBranches(filter = '') {
       const branchList = document.getElementById('branchList');
@@ -495,17 +586,102 @@
       
       branchList.innerHTML = '';
       
+      // First, add Team branches section
+      const teamBranches = allBranches.filter(branch => 
+        isTeamBranch(branch.name) &&
+        (branch.name.toLowerCase().includes(filter.toLowerCase()) ||
+         branch.lastCommit?.message?.toLowerCase().includes(filter.toLowerCase()))
+      );
+      
+      if (teamBranches.length > 0) {
+        const teamSection = document.createElement('div');
+        teamSection.className = 'collaborator-section';
+        
+        // Team header
+        const teamHeader = document.createElement('div');
+        teamHeader.className = 'collaborator-header';
+        
+        const teamAvatar = document.createElement('div');
+        teamAvatar.className = 'collaborator-avatar';
+        teamAvatar.style.background = '#3fb950';
+        teamAvatar.textContent = '🏢';
+        
+        teamHeader.appendChild(teamAvatar);
+        teamHeader.appendChild(document.createTextNode('Team'));
+        
+        if (teamBranches.length > 1) {
+          const count = document.createElement('span');
+          count.className = 'branch-count';
+          count.textContent = `(${teamBranches.length})`;
+          teamHeader.appendChild(count);
+        }
+        
+        teamSection.appendChild(teamHeader);
+        
+        // Team branch items
+        const teamBranchContainer = document.createElement('div');
+        teamBranchContainer.className = 'branch-items expanded';
+        
+        teamBranches.forEach(branch => {
+          const item = document.createElement('div');
+          item.className = 'branch-item';
+          if (branch.name === currentBranch) {
+            item.className += ' current';
+          }
+          
+          const name = document.createElement('div');
+          name.className = 'branch-name';
+          
+          // Add ownership indicator if we have ownership data
+          if (branchOwnership[branch.name]) {
+            const indicator = document.createElement('span');
+            indicator.className = 'ownership-indicator';
+            indicator.title = `Owned by ${branchOwnership[branch.name].owner}`;
+            name.appendChild(indicator);
+          }
+          
+          name.appendChild(document.createTextNode(branch.name));
+          
+          const info = document.createElement('div');
+          info.className = 'branch-info';
+          
+          const message = document.createElement('div');
+          message.className = 'branch-message';
+          message.textContent = branch.lastCommit?.message || 'No commits';
+          
+          const time = document.createElement('div');
+          time.className = 'branch-time';
+          time.textContent = formatDate(branch.lastCommit?.date);
+          
+          info.appendChild(message);
+          info.appendChild(time);
+          
+          item.appendChild(name);
+          item.appendChild(info);
+          
+          item.onclick = () => switchToBranch(branch.name);
+          
+          teamBranchContainer.appendChild(item);
+        });
+        
+        teamSection.appendChild(teamBranchContainer);
+        branchList.appendChild(teamSection);
+      }
+      
+      // Then add individual author sections
       Object.entries(grouped).forEach(([author, branches]) => {
-        // Filter branches
+        // Filter branches and exclude team branches
         const filteredBranches = branches.filter(branch => 
-          branch.name.toLowerCase().includes(filter.toLowerCase()) ||
-          branch.lastCommit?.message?.toLowerCase().includes(filter.toLowerCase())
+          (branch.name.toLowerCase().includes(filter.toLowerCase()) ||
+          branch.lastCommit?.message?.toLowerCase().includes(filter.toLowerCase())) &&
+          !isTeamBranch(branch.name)
         );
         
         if (filteredBranches.length === 0) return;
         
-        // Only show top 3 most recent branches per author
-        const topBranches = filteredBranches.slice(0, 3);
+        const isExpanded = expandedAuthors.has(author);
+        const branchesToShow = isExpanded ? filteredBranches : filteredBranches.slice(0, 3);
+        const hasMore = filteredBranches.length > 3;
         
         const section = document.createElement('div');
         section.className = 'collaborator-section';
@@ -521,10 +697,43 @@
         
         header.appendChild(avatar);
         header.appendChild(document.createTextNode(author));
+        
+        // Add branch count
+        if (filteredBranches.length > 1) {
+          const count = document.createElement('span');
+          count.className = 'branch-count';
+          count.textContent = `(${filteredBranches.length})`;
+          header.appendChild(count);
+        }
+        
+        // Add expand indicator if there are more than 3 branches
+        if (hasMore) {
+          const indicator = document.createElement('span');
+          indicator.className = 'expand-indicator' + (isExpanded ? ' expanded' : '');
+          indicator.textContent = '▶';
+          header.appendChild(indicator);
+        }
+        
+        // Click handler for expand/collapse
+        header.onclick = () => {
+          if (hasMore) {
+            if (expandedAuthors.has(author)) {
+              expandedAuthors.delete(author);
+            } else {
+              expandedAuthors.add(author);
+            }
+            renderBranches(filter);
+          }
+        };
+        
         section.appendChild(header);
         
+        // Branch items container
+        const branchContainer = document.createElement('div');
+        branchContainer.className = 'branch-items' + (isExpanded ? ' expanded' : ' collapsed');
+        
         // Branch items
-        topBranches.forEach(branch => {
+        branchesToShow.forEach(branch => {
           const item = document.createElement('div');
           item.className = 'branch-item';
           if (branch.name === currentBranch) {
@@ -533,7 +742,16 @@
           
           const name = document.createElement('div');
           name.className = 'branch-name';
-          name.textContent = branch.name;
+          
+          // Add ownership indicator if we have ownership data
+          if (branchOwnership[branch.name]) {
+            const indicator = document.createElement('span');
+            indicator.className = 'ownership-indicator';
+            indicator.title = `Owned by ${branchOwnership[branch.name].owner}`;
+            name.appendChild(indicator);
+          }
+          
+          name.appendChild(document.createTextNode(branch.name));
           
           const info = document.createElement('div');
           info.className = 'branch-info';
@@ -571,9 +789,10 @@
           
           item.onclick = () => switchToBranch(branch.name);
           
-          section.appendChild(item);
+          branchContainer.appendChild(item);
         });
         
+        section.appendChild(branchContainer);
         branchList.appendChild(section);
       });
     }
@@ -1320,9 +1539,13 @@
         gitData = data;
         currentBranch = gitData.currentBranch;
         allBranches = gitData.branchDetails || [];
+        teamBranchNames = gitData.teamBranches || teamBranchNames;
+        teamBranchPrefixes = gitData.teamBranchPrefixes || teamBranchPrefixes;
+        branchOwnership = gitData.branchOwnership || {};
         document.getElementById('currentBranchName').textContent = currentBranch;
         console.log('Current branch:', currentBranch);
         console.log('All branches:', allBranches);
+        console.log('Branch ownership:', branchOwnership);
         
         // Render UI
         renderBranches();
