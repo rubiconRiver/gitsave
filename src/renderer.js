@@ -47,12 +47,14 @@ window.electronAPI.onGitStatusChanged((statusInfo) => {
     }
     status.textContent = `${statusInfo.filesChanged} file${statusInfo.filesChanged !== 1 ? 's' : ''} changed`;
     status.classList.add('clickable');
+    status.classList.add('has-changes');
   } else {
     saveButton.disabled = true;
     saveButton.textContent = '💾 No changes to save';
     saveButton.classList.remove('not-my-branch');
     status.textContent = 'No changes since last save';
     status.classList.remove('clickable');
+    status.classList.remove('has-changes');
   }
 });
 
