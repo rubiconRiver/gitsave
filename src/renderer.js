@@ -9,6 +9,8 @@ const pushButton = document.getElementById('pushButton');
 const branchButton = document.getElementById('branchButton');
 const selectRepoButton = document.getElementById('selectRepoButton');
 const quitButton = document.getElementById('quitButton');
+const openFolderButton = document.getElementById('openFolderButton');
+const openGithubButton = document.getElementById('openGithubButton');
 const feedback = document.getElementById('feedback');
 
 // State
@@ -73,6 +75,8 @@ pushButton.addEventListener('click', handlePush);
 branchButton.addEventListener('click', handleBranch);
 selectRepoButton.addEventListener('click', handleSelectRepo);
 quitButton.addEventListener('click', handleQuit);
+openFolderButton.addEventListener('click', handleOpenFolder);
+openGithubButton.addEventListener('click', handleOpenGithub);
 status.addEventListener('click', handleShowChanges);
 
 // Keyboard shortcut for save
@@ -221,6 +225,30 @@ async function handleQuit() {
     await window.gitAPI.quit();
   } catch (error) {
     console.error('Failed to quit:', error);
+  }
+}
+
+async function handleOpenFolder() {
+  try {
+    const result = await window.gitAPI.openFolder();
+    if (result.error) {
+      showError(result.error);
+    }
+  } catch (error) {
+    console.error('Failed to open folder:', error);
+    showError('Failed to open folder');
+  }
+}
+
+async function handleOpenGithub() {
+  try {
+    const result = await window.gitAPI.openGithub();
+    if (result.error) {
+      showError(result.error);
+    }
+  } catch (error) {
+    console.error('Failed to open GitHub:', error);
+    showError('Failed to open GitHub');
   }
 }
 

@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Branch Manager - GitSave</title>
+  <title>Snapshot List - Intentional</title>
   <style>
     * {
       box-sizing: border-box;
@@ -215,6 +215,26 @@
       text-overflow: ellipsis;
       white-space: nowrap;
       max-width: 200px;
+    }
+    
+    .snapshot-indicator {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #8b949e;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    
+    .milestone-indicator {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #3fb950;
+      margin-right: 6px;
+      vertical-align: middle;
     }
     
     .branch-time {
@@ -990,9 +1010,20 @@
       const now = new Date();
       const diff = now - date;
       
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      if (days === 0) return 'Today';
-      if (days === 1) return 'Yesterday';
+      const minutes = Math.floor(diff / (1000 * 60));
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+      
+      if (minutes < 1) return 'just now';
+      if (minutes === 1) return '1 minute ago';
+      if (minutes < 60) return `${minutes} minutes ago`;
+      if (hours === 1) return '1 hour ago';
+      if (hours < 24) {
+        const remainingMinutes = minutes % 60;
+        if (remainingMinutes === 0) return `${hours} hours ago`;
+        return `${hours} hour${hours > 1 ? 's' : ''} ${remainingMinutes} minute${remainingMinutes !== 1 ? 's' : ''} ago`;
+      }
+      if (days === 1) return '1 day ago';
       if (days < 7) return `${days} days ago`;
       if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
       if (days < 365) return `${Math.floor(days / 30)} months ago`;

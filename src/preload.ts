@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('gitAPI', {
   openBranches: () => ipcRenderer.invoke('branches:open'),
   showChanges: () => ipcRenderer.invoke('changes:preview'),
   quit: () => ipcRenderer.invoke('app:quit'),
+  openFolder: () => ipcRenderer.invoke('app:openFolder'),
+  openGithub: () => ipcRenderer.invoke('app:openGithub'),
 });
 
 contextBridge.exposeInMainWorld('licenseAPI', {

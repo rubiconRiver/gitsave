@@ -761,6 +761,50 @@ ipcMain.handle('app:quit', () => {
   app.quit();
 });
 
+ipcMain.handle('app:openFolder', async () => {
+  if (!currentRepo.path) return { error: 'No repository selected' };
+  
+  try {
+    require('electron').shell.openPath(currentRepo.path);
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to open folder' };
+  }
+});
+
+ipcMain.handle('app:openGithub', async () => {
+  if (!currentRepo.path) return { error: 'No repository selected' };
+  
+  try {
+    const git = simpleGit(currentRepo.path);
+    const remotes = await git.getRemotes(true);
+    
+    if (remotes.length === 0) {
+      return { error: 'No remote repository configured' };
+    }
+    
+    // Get the first remote URL (usually 'origin')
+    const remoteUrl = remotes[0].refs.push || remotes[0].refs.fetch;
+    
+    // Convert git URL to GitHub web URL
+    let webUrl = remoteUrl;
+    if (remoteUrl.startsWith('git@github.com:')) {
+      // SSH format: git@github.com:user/repo.git
+      webUrl = remoteUrl.replace('git@github.com:', 'https://github.com/').replace('.git', '');
+    } else if (remoteUrl.startsWith('https://github.com/')) {
+      // HTTPS format: already good, just remove .git
+      webUrl = remoteUrl.replace('.git', '');
+    } else {
+      return { error: 'Remote is not a GitHub repository' };
+    }
+    
+    require('electron').shell.openExternal(webUrl);
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message || 'Failed to open GitHub' };
+  }
+});
+
 ipcMain.handle('changes:preview', async () => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
