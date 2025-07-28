@@ -211,6 +211,67 @@ async function installGitHooks(): Promise<void> {
   }
 }
 
+async function ensureIntentionalDirectory(repoPath: string): Promise<void> {
+  try {
+    const intentionalDir = path.join(repoPath, '.intentional.dev');
+    const commitsDir = path.join(intentionalDir, 'commits');
+    const branchesDir = path.join(intentionalDir, 'branches');
+    
+    // Create all directories that might be used
+    await fs.mkdir(commitsDir, { recursive: true });
+    await fs.mkdir(branchesDir, { recursive: true });
+    
+    // Ensure .gitignore includes .intentional.dev/
+    await ensureGitignoreEntry(repoPath);
+    
+    console.log('Ensured .intentional.dev directory structure exists');
+  } catch (error) {
+    console.error('Failed to create .intentional.dev directory:', error);
+  }
+}
+
+async function ensureGitignoreEntry(repoPath: string): Promise<void> {
+  try {
+    const gitignorePath = path.join(repoPath, '.gitignore');
+    const entryToAdd = '.intentional.dev/';
+    
+    let content = '';
+    let exists = false;
+    
+    // Check if .gitignore exists and read its content
+    try {
+      content = await fs.readFile(gitignorePath, 'utf-8');
+      exists = true;
+    } catch (error) {
+      // File doesn't exist, we'll create it
+    }
+    
+    // Check if entry already exists
+    const lines = content.split('\n');
+    const hasEntry = lines.some(line => 
+      line.trim() === entryToAdd || 
+      line.trim() === '.intentional.dev' ||
+      line.trim() === '/.intentional.dev/'
+    );
+    
+    if (!hasEntry) {
+      // Add entry to .gitignore
+      const newContent = content + (content && !content.endsWith('\n') ? '\n' : '') + entryToAdd + '\n';
+      await fs.writeFile(gitignorePath, newContent);
+      console.log(`Added ${entryToAdd} to .gitignore`);
+      
+      // If this is a git repo and .gitignore was modified, stage it
+      if (exists) {
+        const git = simpleGit(repoPath);
+        await git.add('.gitignore');
+        console.log('Staged .gitignore changes');
+      }
+    }
+  } catch (error) {
+    console.error('Failed to update .gitignore:', error);
+  }
+}
+
 async function checkForUnprocessedCommits(): Promise<void> {
   if (!currentRepo.path) return;
   
@@ -316,6 +377,9 @@ async function loadRepository(repoPath: string) {
       
       // Install git hooks for this repository
       await installGitHooks();
+      
+      // Ensure .intentional.dev directory exists (so it's already ignored by git)
+      await ensureIntentionalDirectory(repoPath);
       
       console.log('Loaded repository:', currentRepo);
       return true;
