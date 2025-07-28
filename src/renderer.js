@@ -39,10 +39,24 @@ window.electronAPI.onGitStatusChanged((statusInfo) => {
   if (hasChanges) {
     saveButton.disabled = false;
     if (isMyBranch) {
-      saveButton.textContent = `💾 Save Changes (${statusInfo.filesChanged} files)`;
+      saveButton.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 8px;">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+        Save Changes (${statusInfo.filesChanged} files)
+      `;
       saveButton.classList.remove('not-my-branch');
     } else {
-      saveButton.textContent = `Save to ${currentBranch} (${statusInfo.filesChanged} files)`;
+      saveButton.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 8px;">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+        Save to ${currentBranch} (${statusInfo.filesChanged} files)
+      `;
       saveButton.classList.add('not-my-branch');
     }
     status.textContent = `${statusInfo.filesChanged} file${statusInfo.filesChanged !== 1 ? 's' : ''} changed`;
@@ -50,7 +64,14 @@ window.electronAPI.onGitStatusChanged((statusInfo) => {
     status.classList.add('has-changes');
   } else {
     saveButton.disabled = true;
-    saveButton.textContent = '💾 No changes to save';
+    saveButton.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 8px;">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+        <polyline points="7 3 7 8 15 8"></polyline>
+      </svg>
+      No changes to save
+    `;
     saveButton.classList.remove('not-my-branch');
     status.textContent = 'No changes since last save';
     status.classList.remove('clickable');

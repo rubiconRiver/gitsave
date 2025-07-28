@@ -556,7 +556,12 @@
     
     <div class="main-action">
       <button class="save-button" id="saveButton">
-        💾 Save Changes
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 8px;">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+        Save Changes
       </button>
       <textarea 
         class="message-input" 
@@ -567,16 +572,37 @@
     </div>
     
     <div class="actions">
-      <button class="action-button" id="syncButton">🔄 Sync</button>
-      <button class="action-button" id="pushButton">📤 Push</button>
-      <button class="action-button" id="branchButton">🌿 Branch</button>
+      <button class="action-button" id="syncButton">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 6px;">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        Sync
+      </button>
+      <button class="action-button" id="pushButton">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 6px;">
+          <line x1="12" y1="19" x2="12" y2="5"></line>
+          <polyline points="5 12 12 5 19 12"></polyline>
+        </svg>
+        Push
+      </button>
+      <button class="action-button" id="branchButton">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; margin-right: 6px;">
+          <line x1="6" y1="3" x2="6" y2="15"></line>
+          <circle cx="18" cy="6" r="3"></circle>
+          <circle cx="6" cy="18" r="3"></circle>
+          <path d="M18 9a9 9 0 0 1-9 9"></path>
+        </svg>
+        Branches
+      </button>
     </div>
     
     <div class="footer">
       <button class="footer-button" id="selectRepoButton">Change Project</button>
-      <button class="footer-button" id="openFolderButton">📁 Open in Finder</button>
-      <button class="footer-button" id="openGithubButton">🌐 View on GitHub</button>
-      <button class="footer-button" id="quitButton">Quit GitSave</button>
+      <button class="footer-button" id="openFolderButton">Open in Finder</button>
+      <button class="footer-button" id="openGithubButton">View on GitHub</button>
+      <button class="footer-button" id="quitButton">Quit Intentional</button>
     </div>
   </div>
   
