@@ -808,8 +808,8 @@ ipcMain.handle('branches:open', async () => {
   }
   
   try {
-    // Use GitDataFetcher to get comprehensive git data
-    const fetcher = new GitDataFetcher(currentRepo.path);
+    // Use GitDataFetcher to get comprehensive git data with WIP filtering enabled
+    const fetcher = new GitDataFetcher(currentRepo.path, true);
     const gitData = await fetcher.fetchComprehensiveData();
     
     // Load team branches configuration

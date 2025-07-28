@@ -1015,15 +1015,6 @@
       console.error('Failed to register dagre layout - libraries not loaded');
     }
     
-    // Helper function to detect save/WIP commits
-    function isSaveCommit(message) {
-      const lowerMessage = message.toLowerCase().trim();
-      return lowerMessage === 'wip' || 
-             lowerMessage === 'save' || 
-             lowerMessage === 'saving' ||
-             lowerMessage.startsWith('wip:') ||
-             lowerMessage.startsWith('save:');
-    }
     
     // Calculate x position based on time - rigid timeline with fixed hour intervals
     function calculateTimePosition(timestamp, now) {
@@ -1078,12 +1069,14 @@
         
         // Build a map of which commits are branch tips
         const branchTips = new Map();
+        const branchTipHashes = new Set(); // Track all branch tip commit hashes
         if (gitData.branchCommitMap) {
           gitData.branchCommitMap.forEach((commitHash, branchName) => {
             if (!branchTips.has(commitHash)) {
               branchTips.set(commitHash, []);
             }
             branchTips.get(commitHash).push(branchName);
+            branchTipHashes.add(commitHash);
           });
         }
         console.log('Branch tips:', branchTips);
@@ -1091,7 +1084,6 @@
         // Create nodes with pre-calculated positions
         gitData.allCommits.forEach((commit) => {
           const timestamp = new Date(commit.date).getTime();
-          const isSave = isSaveCommit(commit.message);
           const branches = branchTips.get(commit.hash) || [];
           const isBranchTip = branches.length > 0;
           
@@ -1103,8 +1095,6 @@
           let nodeClass = 'intentional-commit';
           if (isBranchTip) {
             nodeClass = 'branch-tip';
-          } else if (isSave) {
-            nodeClass = 'save-commit';
           }
           
           const node = {
@@ -1117,7 +1107,6 @@
               message: commit.message,
               hash: commit.hash.substring(0, HASH_LENGTH),
               timestamp: timestamp,
-              isSave: isSave,
               isBranchTip: isBranchTip,
               branches: branches
             },
@@ -1160,12 +1149,7 @@
           });
         });
         
-        // Count save vs intentional commits
-        const saveCount = nodes.filter(n => n.data.isSave).length;
-        const intentionalCount = nodes.length - saveCount;
-        
         console.log('Created', nodes.length, 'nodes and', edges.length, 'edges');
-        console.log(`Commits: ${intentionalCount} intentional, ${saveCount} saves`);
         
         // Add hourly time markers for the visible timeline
         const msPerHour = 60 * 60 * 1000;
@@ -1283,19 +1267,6 @@
               'height': NODE_SIZE,
               'border-width': NODE_BORDER_WIDTH,
               'border-color': EDGE_COLOR
-            }
-          },
-          // Save/WIP commit style
-          {
-            selector: 'node.save-commit',
-            style: {
-              'background-color': '#30363d',
-              'label': '', // No label for save commits
-              'width': NODE_SIZE_SAVE,
-              'height': NODE_SIZE_SAVE,
-              'border-width': NODE_BORDER_WIDTH_SAVE,
-              'border-color': '#21262d',
-              'opacity': 0.6
             }
           },
           // Branch tip style
@@ -1427,15 +1398,6 @@
         if (data.isBranchLabel || data.isTimeMarker || data.isTimeLine) {
           // Don't change branch labels, time markers, or time lines on hover
           return;
-        } else if (data.isSave) {
-          node.style({
-            'background-color': '#58a6ff',
-            'border-color': '#58a6ff',
-            'opacity': 1,
-            'width': NODE_SIZE_SAVE + 4,
-            'height': NODE_SIZE_SAVE + 4,
-            'z-index': 999
-          });
         } else if (data.isBranchTip) {
           node.style({
             'background-color': '#58a6ff',
@@ -1460,14 +1422,6 @@
         if (data.isBranchLabel || data.isTimeMarker || data.isTimeLine) {
           // Don't change branch labels, time markers, or time lines
           return;
-        } else if (data.isSave) {
-          node.style({
-            'background-color': '#30363d',
-            'border-color': '#21262d',
-            'opacity': 0.6,
-            'width': NODE_SIZE_SAVE,
-            'height': NODE_SIZE_SAVE
-          });
         } else if (data.isBranchTip) {
           node.style({
             'background-color': '#3fb950',

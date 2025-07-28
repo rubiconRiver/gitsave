@@ -37,10 +37,23 @@ export interface GitGraphData {
 export class GitDataFetcher {
   private git: SimpleGit;
   private repoPath: string;
+  private filterWipCommits: boolean;
 
-  constructor(repoPath: string) {
+  constructor(repoPath: string, filterWipCommits: boolean = true) {
     this.repoPath = repoPath;
     this.git = simpleGit(repoPath);
+    this.filterWipCommits = filterWipCommits;
+  }
+
+  private isWipCommit(message: string): boolean {
+    const lowerMessage = message.toLowerCase().trim();
+    return lowerMessage === 'wip' || 
+           lowerMessage === 'save' || 
+           lowerMessage === 'saving' ||
+           lowerMessage === 'snapshot' ||
+           lowerMessage.startsWith('wip:') ||
+           lowerMessage.startsWith('save:') ||
+           lowerMessage.startsWith('snapshot:');
   }
 
   async fetchComprehensiveData(): Promise<GitGraphData> {
@@ -48,13 +61,73 @@ export class GitDataFetcher {
     const branches = await this.git.branchLocal();
     
     // Get comprehensive commit history from all branches with parent info
-    const allCommits = await this.fetchAllCommits();
+    let allCommits = await this.fetchAllCommits();
     
     // Get branch references
     const branchCommitMap = await this.fetchBranchReferences();
     
     // Get branch details with last commit info
     const branchDetails = await this.fetchBranchDetails(branches.all);
+    
+    // Filter out WIP commits if enabled, but keep branch tips
+    if (this.filterWipCommits) {
+      const branchTipHashes = new Set(Array.from(branchCommitMap.values()));
+      const filteredCommits: CommitInfo[] = [];
+      const wipCommitHashes = new Set<string>();
+      
+      // First pass: identify all WIP commits
+      for (const commit of allCommits) {
+        if (this.isWipCommit(commit.message)) {
+          wipCommitHashes.add(commit.hash);
+        }
+      }
+      
+      // Build a map for finding replacement parents
+      const parentMap = new Map<string, string[]>();
+      for (const commit of allCommits) {
+        parentMap.set(commit.hash, commit.parents);
+      }
+      
+      // Function to find non-WIP ancestors
+      const findNonWipAncestors = (hash: string, visited = new Set<string>()): string[] => {
+        if (visited.has(hash)) return [];
+        visited.add(hash);
+        
+        if (!wipCommitHashes.has(hash) || branchTipHashes.has(hash)) {
+          return [hash];
+        }
+        
+        const parents = parentMap.get(hash) || [];
+        const ancestors: string[] = [];
+        for (const parent of parents) {
+          ancestors.push(...findNonWipAncestors(parent, visited));
+        }
+        return ancestors;
+      };
+      
+      // Second pass: keep non-WIP commits and WIP commits that are branch tips
+      for (const commit of allCommits) {
+        if (!wipCommitHashes.has(commit.hash) || branchTipHashes.has(commit.hash)) {
+          // Find proper parent connections, skipping over filtered WIP commits
+          const reconnectedParents: string[] = [];
+          for (const parent of commit.parents) {
+            if (!wipCommitHashes.has(parent) || branchTipHashes.has(parent)) {
+              reconnectedParents.push(parent);
+            } else {
+              // Find non-WIP ancestors to connect to
+              reconnectedParents.push(...findNonWipAncestors(parent));
+            }
+          }
+          
+          filteredCommits.push({
+            ...commit,
+            parents: [...new Set(reconnectedParents)] // Remove duplicates
+          });
+        }
+      }
+      
+      allCommits = filteredCommits;
+    }
     
     // Get raw graph output for ASCII visualization
     const rawGraph = await this.git.raw([
