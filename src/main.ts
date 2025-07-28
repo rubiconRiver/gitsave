@@ -11,7 +11,7 @@ const store = new Store();
 const mb = menubar({
   index: `file://${path.join(__dirname, '..', 'src', 'index.html')}`,
   browserWindow: {
-    width: 400,
+    width: 800,
     height: 500,
     webPreferences: {
       nodeIntegration: false,

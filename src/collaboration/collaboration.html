@@ -1,0 +1,80 @@
+<div class="collaboration-panel">
+  <div class="collab-header">
+    <h2 class="collab-title">Team Sync</h2>
+    <button class="collab-refresh" id="collab-refresh" title="Refresh">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <polyline points="1 20 1 14 7 14"></polyline>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+      </svg>
+    </button>
+  </div>
+
+  <div class="collab-section" id="project-goals-section">
+    <div class="collab-section-header" data-toggle="project-goals">
+      <svg class="collab-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </svg>
+      <h3 class="collab-section-title">📌 Project Goals</h3>
+    </div>
+    <div class="collab-section-content" id="project-goals">
+      <div class="goal-item">
+        <span class="goal-text">Loading goals...</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="collab-section" id="recent-builds-section">
+    <div class="collab-section-header" data-toggle="recent-builds">
+      <svg class="collab-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </svg>
+      <h3 class="collab-section-title">🏗️ Recent Builds</h3>
+    </div>
+    <div class="collab-section-content" id="recent-builds">
+      <div class="build-item">
+        <span class="build-text">No recent builds</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="collab-section" id="my-tasks-section">
+    <div class="collab-section-header" data-toggle="my-tasks">
+      <svg class="collab-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </svg>
+      <h3 class="collab-section-title">✅ My Tasks</h3>
+      <span class="task-count" id="my-task-count">0</span>
+    </div>
+    <div class="collab-section-content" id="my-tasks">
+      <div class="task-item">
+        <span class="task-text">No tasks assigned</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="collab-section" id="team-tasks-section">
+    <div class="collab-section-header" data-toggle="team-tasks">
+      <svg class="collab-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </svg>
+      <h3 class="collab-section-title">👥 Team Tasks</h3>
+      <span class="task-count" id="team-task-count">0</span>
+    </div>
+    <div class="collab-section-content" id="team-tasks">
+      <div class="task-item">
+        <span class="task-text">No team tasks</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="collab-footer">
+    <button class="collab-add-task" id="add-task-btn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+      Add Task
+    </button>
+  </div>
+</div>

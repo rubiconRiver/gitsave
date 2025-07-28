@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Intentional</title>
+  <link rel="stylesheet" href="collaboration/collaboration.css">
   <style>
     * {
       box-sizing: border-box;
@@ -41,6 +42,12 @@
       overflow: hidden;
     }
     
+    .app-container {
+      display: flex;
+      height: 100%;
+      width: 100%;
+    }
+    
     .container {
       background: var(--bg-secondary);
       height: 100%;
@@ -48,6 +55,7 @@
       flex-direction: column;
       position: relative;
       overflow: hidden;
+      width: 400px;
     }
     
     /* Subtle gradient overlay */
@@ -544,7 +552,9 @@
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="app-container">
+    <div id="collaboration-container"></div>
+    <div class="container">
     <div class="header">
       <div class="project-info">
         <span class="project-name" id="projectName">No Project</span>
@@ -629,6 +639,7 @@
       </div>
     </div>
   </div>
+  </div> <!-- End app-container -->
   
   <script src="renderer.js"></script>
 </body>

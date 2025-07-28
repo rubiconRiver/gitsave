@@ -476,3 +476,139 @@ async function claimBranch(branchName) {
     }
   }
 }
+
+// Load collaboration panel
+async function loadCollaborationPanel() {
+  try {
+    const container = document.getElementById('collaboration-container');
+    if (!container) {
+      console.error('Collaboration container not found');
+      return;
+    }
+    
+    // Load the collaboration HTML
+    const response = await fetch('collaboration/collaboration.html');
+    const html = await response.text();
+    container.innerHTML = html;
+    
+    // Initialize collaboration features
+    initializeCollaboration();
+  } catch (error) {
+    console.error('Failed to load collaboration panel:', error);
+  }
+}
+
+function initializeCollaboration() {
+  // Set up collapsible sections
+  const headers = document.querySelectorAll('.collab-section-header');
+  headers.forEach(header => {
+    header.addEventListener('click', () => {
+      header.classList.toggle('expanded');
+    });
+    // Start with all sections expanded
+    header.classList.add('expanded');
+  });
+  
+  // Refresh button
+  const refreshBtn = document.getElementById('collab-refresh');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      refreshCollaboration();
+    });
+  }
+  
+  // Add task button
+  const addTaskBtn = document.getElementById('add-task-btn');
+  if (addTaskBtn) {
+    addTaskBtn.addEventListener('click', () => {
+      // TODO: Implement add task dialog
+      console.log('Add task clicked');
+    });
+  }
+  
+  // Load initial mock data
+  loadMockCollaborationData();
+}
+
+function loadMockCollaborationData() {
+  // Mock goals
+  const goalsContainer = document.getElementById('project-goals');
+  if (goalsContainer) {
+    goalsContainer.innerHTML = `
+      <div class="goal-item">
+        <div class="goal-text">Launch v1.0 with full collaboration features</div>
+      </div>
+      <div class="goal-item">
+        <div class="goal-text">Implement real-time sync using git branches</div>
+      </div>
+    `;
+  }
+  
+  // Mock tasks
+  const myTasksContainer = document.getElementById('my-tasks');
+  const myTaskCount = document.getElementById('my-task-count');
+  if (myTasksContainer) {
+    myTasksContainer.innerHTML = `
+      <div class="task-item">
+        <div class="task-checkbox" data-task-id="1"></div>
+        <div class="task-content">
+          <div class="task-text">Design logo for Intentional</div>
+          <div class="task-assignee">From: Garett</div>
+        </div>
+      </div>
+    `;
+  }
+  if (myTaskCount) {
+    myTaskCount.textContent = '1';
+  }
+  
+  // Mock team tasks
+  const teamTasksContainer = document.getElementById('team-tasks');
+  const teamTaskCount = document.getElementById('team-task-count');
+  if (teamTasksContainer) {
+    teamTasksContainer.innerHTML = `
+      <div class="task-item">
+        <div class="task-checkbox" data-task-id="2"></div>
+        <div class="task-content">
+          <div class="task-text">Test collaboration sync on Windows</div>
+          <div class="task-assignee">For: Garett</div>
+        </div>
+      </div>
+    `;
+  }
+  if (teamTaskCount) {
+    teamTaskCount.textContent = '1';
+  }
+  
+  // Mock builds
+  const buildsContainer = document.getElementById('recent-builds');
+  if (buildsContainer) {
+    buildsContainer.innerHTML = `
+      <div class="build-item">
+        <div class="build-info">
+          <div class="build-version">v0.8.0</div>
+          <div class="build-time">2h ago by Garett</div>
+        </div>
+        <span class="build-status success">success</span>
+      </div>
+    `;
+  }
+}
+
+async function refreshCollaboration() {
+  const refreshBtn = document.getElementById('collab-refresh');
+  if (refreshBtn) {
+    // Add spinning animation
+    refreshBtn.style.animation = 'spin 1s linear infinite';
+  }
+  
+  // TODO: Implement actual refresh with git show
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  if (refreshBtn) {
+    refreshBtn.style.animation = '';
+  }
+}
+
+// Load collaboration panel on startup
+loadCollaborationPanel();
