@@ -19,10 +19,20 @@ let hasChanges = false;
 let pendingCommitMessage = '';
 let currentBranch = '';
 let isMyBranch = true;
+let isInitialLoad = true;
+let loadingTimeout = null;
 
 // Initialize
-updateRepoInfo();
-checkAuthentication();
+// Add a small delay and loading state for initial load
+showLoadingState();
+setTimeout(() => {
+  updateRepoInfo();
+  checkAuthentication();
+  // Clear loading state after 3 seconds max
+  loadingTimeout = setTimeout(() => {
+    isInitialLoad = false;
+  }, 3000);
+}, 100);
 
 // Listen for branch changes
 window.electronAPI.onBranchChanged((repo) => {
@@ -114,6 +124,17 @@ document.addEventListener('keydown', (e) => {
 async function updateRepoInfo() {
   try {
     const repo = await window.gitAPI.getRepoInfo();
+    
+    // Clear loading state on successful load
+    if (isInitialLoad) {
+      isInitialLoad = false;
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+        loadingTimeout = null;
+      }
+      clearLoadingState();
+    }
+    
     projectName.textContent = repo.name;
     branchName.textContent = repo.branch;
     currentBranch = repo.branch;
@@ -125,7 +146,10 @@ async function updateRepoInfo() {
       checkBranchOwnership();
     }
   } catch (error) {
-    showError('Failed to get repository info');
+    // Only show error if not initial load
+    if (!isInitialLoad) {
+      showError('Failed to get repository info');
+    }
   }
 }
 
@@ -335,14 +359,17 @@ async function checkAuthentication() {
       return;
     }
     
-    if (!authInfo.configured) {
-      showWarning('Git configuration incomplete. Push may fail without proper setup.');
-      return;
-    }
-    
-    if (!authInfo.hasRemotes) {
-      showWarning('No remote repository configured. Push will fail until you add a remote.');
-      return;
+    // Only show warnings after initial load
+    if (!isInitialLoad) {
+      if (!authInfo.configured) {
+        showWarning('Git configuration incomplete. Push may fail without proper setup.');
+        return;
+      }
+      
+      if (!authInfo.hasRemotes) {
+        showWarning('No remote repository configured. Push will fail until you add a remote.');
+        return;
+      }
     }
     
     if (authInfo.credentialHelper === 'none') {
@@ -853,6 +880,20 @@ window.createTask = async function() {
     alert('Failed to create task: ' + (result.error || 'Unknown error'));
   }
 };
+
+// Loading state functions
+function showLoadingState() {
+  projectName.innerHTML = '<span class="loading-text">Loading...</span>';
+  branchName.classList.add('loading-text');
+  feedback.innerHTML = '<span style="color: var(--text-secondary); font-size: 12px; opacity: 0.8;">Initializing Intentional...</span>';
+  feedback.className = '';
+}
+
+function clearLoadingState() {
+  feedback.textContent = '';
+  feedback.className = '';
+  branchName.classList.remove('loading-text');
+}
 
 // Load collaboration panel on startup
 loadCollaborationPanel();
