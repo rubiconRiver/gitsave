@@ -3,11 +3,13 @@ import { GitService } from '../services/GitService';
 import { BranchService } from '../services/BranchService';
 import { FileService } from '../services/FileService';
 import { RepoInfo } from '../types';
+import { StateManager } from '../state/StateManager';
 
 export interface IPCContext {
   gitService: GitService;
   branchService: BranchService;
   fileService: FileService;
+  stateManager: StateManager;
   getCurrentRepo: () => RepoInfo;
   handleBranchChange: (branch: string) => void;
   loadRepository?: (path: string) => Promise<boolean>;

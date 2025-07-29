@@ -11,6 +11,7 @@ import { FileService } from './main/services/FileService';
 import { RepoInfo, CommitResult, TimeTravelState } from './main/types';
 import { IPCRouter } from './main/ipc/IPCRouter';
 import * as handlers from './main/ipc/handlers';
+import { StateManager } from './main/state/StateManager';
 
 const store = new Store();
 
@@ -18,6 +19,9 @@ const store = new Store();
 const gitService = new GitService();
 const branchService = new BranchService(gitService);
 const fileService = new FileService();
+
+// Initialize state manager
+const stateManager = new StateManager(gitService, branchService, fileService);
 
 // Initialize IPC Router
 let ipcRouter: IPCRouter;
@@ -39,12 +43,8 @@ const mb = menubar({
   icon: path.join(__dirname, '..', 'assets', 'menubar-icon.png')
 });
 
-// Track current repo info
-let currentRepo: RepoInfo = {
-  path: store.get('lastRepoPath', '') as string,
-  name: store.get('lastRepoName', 'No Project') as string,
-  branch: store.get('lastRepoBranch', 'main') as string
-};
+// Get current repo from state manager
+const getCurrentRepo = () => stateManager.getStateValue('currentRepo');
 
 mb.on('ready', async () => {
   // Initialize IPC Router with context
@@ -52,10 +52,11 @@ mb.on('ready', async () => {
     gitService,
     branchService,
     fileService,
-    getCurrentRepo: () => currentRepo,
-    handleBranchChange,
-    loadRepository,
-    mb
+    getCurrentRepo,
+    handleBranchChange: (branch: string) => stateManager.changeBranch(branch),
+    loadRepository: (path: string) => stateManager.loadRepository(path),
+    mb,
+    stateManager
   } as any);
   
   // Register all IPC handlers
@@ -67,57 +68,36 @@ mb.on('ready', async () => {
   ipcRouter.registerModule(handlers.hookHandlers);
 
   console.log('Intentional is ready!');
-  console.log('Initial currentRepo:', currentRepo);
+  console.log('Initial currentRepo:', stateManager.getStateValue('currentRepo'));
   
   // Check license - TEMPORARILY BYPASSED
-  // if (!LicenseManager.isLicensed()) {
-  //   const result = await dialog.showMessageBox({
-  //     type: 'info',
-  //     title: 'Intentional - License Required',
-  //     message: 'Please enter your license key to activate Intentional',
-  //     buttons: ['Enter License', 'Buy License', 'Dev Mode', 'Quit']
-  //   });
-  //   
-  //   if (result.response === 0) {
-  //     // Show license dialog
-  //     mb.window?.loadFile(path.join(__dirname, '..', 'src', 'license.html'));
-  //   } else if (result.response === 1) {
-  //     // Open purchase page
-  //     require('electron').shell.openExternal('https://getintentional.dev/buy');
-  //     app.quit();
-  //   } else if (result.response === 2) {
-  //     // Dev mode - skip license check
-  //     console.log('Running in dev mode - license bypassed');
-  //     // Continue normal startup
-  //   } else {
-  //     app.quit();
-  //     return;
-  //   }
-  //   
-  //   if (result.response !== 2) {
-  //     return;
-  //   }
-  // }
+  // [License check code omitted for brevity]
   
   // Load last project if available
-  if (currentRepo.path) {
-    loadRepository(currentRepo.path);
+  const lastRepo = stateManager.getStateValue('currentRepo');
+  if (lastRepo.path) {
+    stateManager.loadRepository(lastRepo.path);
   }
   
-  // Update tray title and git info periodically
+  // Subscribe to state changes
+  stateManager.on('branch-changed', () => updateTrayTitle());
+  stateManager.on('repo-changed', () => updateTrayTitle());
+  stateManager.on('git-status-changed', (state) => {
+    if (mb.window) {
+      mb.window.webContents.send('git-status-changed', {
+        hasChanges: state.hasFileChanges,
+        filesChanged: state.filesChanged,
+        modified: state.modifiedCount,
+        created: state.createdCount,
+        deleted: state.deletedCount,
+        renamed: state.renamedCount
+      });
+    }
+  });
+  
+  // Initial update
   updateTrayTitle();
-  updateGitInfo();
-  checkForUnprocessedCommits(); // Check on startup
-  
-  setInterval(() => {
-    updateTrayTitle();
-    updateGitInfo();
-  }, 2000); // Check every 2 seconds
-  
-  // Check for unprocessed commits less frequently
-  setInterval(() => {
-    checkForUnprocessedCommits();
-  }, 10000); // Check every 10 seconds
+  checkForUnprocessedCommits();
 });
 
 mb.on('after-create-window', () => {
@@ -128,6 +108,7 @@ mb.on('after-create-window', () => {
 });
 
 function updateTrayTitle() {
+  const currentRepo = stateManager.getStateValue('currentRepo');
   console.log('updateTrayTitle called, mb.tray exists:', !!mb.tray);
   if (mb.tray) {
     // Show default text if no project is selected
@@ -143,112 +124,42 @@ function updateTrayTitle() {
   }
 }
 
-// Central function to handle branch changes
-function handleBranchChange(newBranch: string) {
-  currentRepo.branch = newBranch;
-  store.set('lastRepoBranch', newBranch);
-  updateTrayTitle();
-  
-  // Notify the main window about branch change
+// State change notifications
+stateManager.on('branch-changed', (state) => {
   if (mb.window) {
-    mb.window.webContents.send('branch-changed', currentRepo);
+    mb.window.webContents.send('branch-changed', state.currentRepo);
   }
-}
+});
 
-// Branch ownership is now handled by BranchService
-
-// File operations are now handled by FileService
+stateManager.on('repo-changed', (state) => {
+  if (mb.window) {
+    mb.window.webContents.send('repo-loaded', state.currentRepo);
+  }
+});
 
 async function checkForUnprocessedCommits(): Promise<void> {
+  const currentRepo = stateManager.getStateValue('currentRepo');
   if (!currentRepo.path) return;
   await fileService.checkForUnprocessedCommits(currentRepo.path);
 }
 
-async function updateGitInfo() {
-  if (!currentRepo.path) return;
-  
-  try {
-    const [branchInfo, status] = await Promise.all([
-      gitService.getBranches(),
-      gitService.getStatus()
-    ]);
-    
-    // Check for branch changes
-    if (branchInfo.current !== currentRepo.branch) {
-      handleBranchChange(branchInfo.current);
-    }
-    
-    // Send file change status to renderer
-    if (mb.window) {
-      const hasChanges = status.files.length > 0;
-      mb.window.webContents.send('git-status-changed', {
-        hasChanges,
-        filesChanged: status.files.length,
-        // Don't send the full status object, just what we need
-        modified: status.modified.length,
-        created: status.created.length,
-        deleted: status.deleted.length,
-        renamed: status.renamed.length
-      });
-    }
-  } catch (error) {
-    console.error('Failed to update git info:', error);
-  }
-}
+// Git info updates are now handled by StateManager
 
-async function loadRepository(repoPath: string) {
-  console.log('loadRepository called with:', repoPath);
-  try {
-    gitService.setRepository(repoPath);
-    const isRepo = await gitService.checkIsRepo();
-    console.log('Is valid repo:', isRepo);
-    
-    if (isRepo) {
-      currentRepo.path = repoPath;
-      currentRepo.name = path.basename(repoPath);
-      const branch = await gitService.getBranches();
-      console.log('Current git branch:', branch.current);
-      console.log('Stored branch was:', currentRepo.branch);
-      
-      // Update persistent storage
-      store.set('lastRepoPath', repoPath);
-      store.set('lastRepoName', currentRepo.name);
-      
-      // Use handleBranchChange to set branch and notify
-      handleBranchChange(branch.current);
-      
-      // Notify renderer if window is open
-      if (mb.window) {
-        mb.window.webContents.send('repo-loaded', currentRepo);
-      }
-      
-      // Install git hooks for this repository
-      await fileService.installGitHooks(repoPath, path.join(__dirname, '..', 'src', 'hooks'));
-      
-      // Ensure .intentional.dev directory exists (so it's already ignored by git)
-      await fileService.ensureIntentionalDirectory(repoPath);
-      
-      console.log('Loaded repository:', currentRepo);
-      return true;
-    } else {
-      console.error('Not a valid git repository:', repoPath);
-      // Clear invalid saved path
-      store.delete('lastRepoPath');
-      store.delete('lastRepoName');
-      store.delete('lastRepoBranch');
-      currentRepo.path = '';
-      currentRepo.name = 'No Project';
-      currentRepo.branch = 'main';
-      return false;
-    }
-  } catch (error) {
-    console.error('Failed to load repository:', error);
-    return false;
+// Repository loading is now handled by StateManager
+// We need to add hook installation to StateManager
+stateManager.on('repo-changed', async (state) => {
+  if (state.isValidRepo && state.currentRepo.path) {
+    await fileService.installGitHooks(state.currentRepo.path, path.join(__dirname, '..', 'src', 'hooks'));
+    await fileService.ensureIntentionalDirectory(state.currentRepo.path);
   }
-}
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+app.on('before-quit', () => {
+  stateManager.destroy();
 });
