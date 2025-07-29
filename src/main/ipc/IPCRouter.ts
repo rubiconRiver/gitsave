@@ -14,6 +14,8 @@ export interface IPCContext {
   handleBranchChange: (branch: string) => void;
   loadRepository?: (path: string) => Promise<boolean>;
   mb?: any; // Menubar instance
+  getCollaborationStore?: () => any; // CollaborationStore instance
+  updateCollaborationActivity?: (message: string) => Promise<void>;
 }
 
 export type IPCHandler = (event: IpcMainInvokeEvent, ...args: any[]) => Promise<any>;

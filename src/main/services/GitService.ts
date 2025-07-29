@@ -47,6 +47,10 @@ export class GitService {
   async addAll(): Promise<void> {
     await this.getGit().add('.');
   }
+  
+  async add(filepath: string): Promise<void> {
+    await this.getGit().add(filepath);
+  }
 
   async commit(message: string): Promise<void> {
     await this.getGit().commit(message);

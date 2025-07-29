@@ -98,6 +98,13 @@ export const gitHandlers: { [key: string]: IPCHandler } = {
       await this.gitService.addAll();
       await this.gitService.commit(message || 'WIP');
       
+      // Update collaboration activity asynchronously
+      if (this.updateCollaborationActivity) {
+        this.updateCollaborationActivity(message || 'WIP').catch(err => {
+          console.error('Failed to update collaboration activity:', err);
+        });
+      }
+      
       try {
         await this.gitService.push();
         return { success: true, pushed: true };

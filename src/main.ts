@@ -12,6 +12,7 @@ import { RepoInfo, CommitResult, TimeTravelState } from './main/types';
 import { IPCRouter } from './main/ipc/IPCRouter';
 import * as handlers from './main/ipc/handlers';
 import { StateManager } from './main/state/StateManager';
+import { CollaborationStore } from './main/collaboration/CollaborationStore';
 
 const store = new Store();
 
@@ -22,6 +23,9 @@ const fileService = new FileService();
 
 // Initialize state manager
 const stateManager = new StateManager(gitService, branchService, fileService);
+
+// Initialize collaboration store (will be set up after repo is loaded)
+let collaborationStore: CollaborationStore | null = null;
 
 // Initialize IPC Router
 let ipcRouter: IPCRouter;
@@ -56,7 +60,30 @@ mb.on('ready', async () => {
     handleBranchChange: (branch: string) => stateManager.changeBranch(branch),
     loadRepository: (path: string) => stateManager.loadRepository(path),
     mb,
-    stateManager
+    stateManager,
+    getCollaborationStore: () => collaborationStore,
+    updateCollaborationActivity: async (message: string) => {
+      if (!collaborationStore) return;
+      
+      try {
+        const currentBranch = stateManager.getStateValue('currentBranch');
+        const lastCommit = await gitService.log(['-1', '--format=%H']);
+        
+        await collaborationStore.activity.logCommit(
+          currentBranch,
+          message,
+          lastCommit.latest?.hash || ''
+        );
+        
+        // Also update branch info
+        await collaborationStore.branches.updateLastCommit(currentBranch, {
+          hash: lastCommit.latest?.hash || '',
+          message
+        });
+      } catch (error) {
+        console.error('Failed to log activity:', error);
+      }
+    }
   } as any);
   
   // Register all IPC handlers
@@ -151,6 +178,29 @@ stateManager.on('repo-changed', async (state) => {
   if (state.isValidRepo && state.currentRepo.path) {
     await fileService.installGitHooks(state.currentRepo.path, path.join(__dirname, '..', 'src', 'hooks'));
     await fileService.ensureIntentionalDirectory(state.currentRepo.path);
+    
+    // Initialize collaboration store for this repo
+    try {
+      // Get user info from git config
+      const [userName] = await Promise.all([
+        gitService.getConfig('user.name')
+      ]);
+      
+      const username = userName.value || 'user';
+      
+      // Initialize collaboration store
+      collaborationStore = CollaborationStore.getInstance(
+        gitService,
+        state.currentRepo.path,
+        username.toLowerCase().replace(/\s+/g, '-')
+      );
+      
+      await collaborationStore.initialize();
+      
+      console.log('Collaboration store initialized for', username);
+    } catch (error) {
+      console.error('Failed to initialize collaboration store:', error);
+    }
   }
 });
 
