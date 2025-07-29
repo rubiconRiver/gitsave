@@ -2,12 +2,21 @@ import { menubar } from 'menubar';
 import { app, BrowserWindow, ipcMain, Menu, MenuItem, dialog } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs/promises';
-import simpleGit from 'simple-git';
 import Store from 'electron-store';
 import { LicenseManager } from './license';
 import { GitDataFetcher } from './git-data-fetcher';
+import { GitService } from './main/services/GitService';
+import { BranchService } from './main/services/BranchService';
+import { FileService } from './main/services/FileService';
+import { RepoInfo, CommitResult, TimeTravelState } from './main/types';
 
 const store = new Store();
+
+// Initialize services
+const gitService = new GitService();
+const branchService = new BranchService(gitService);
+const fileService = new FileService();
+
 const mb = menubar({
   index: `file://${path.join(__dirname, '..', 'src', 'index.html')}`,
   browserWindow: {
@@ -26,7 +35,7 @@ const mb = menubar({
 });
 
 // Track current repo info
-let currentRepo = {
+let currentRepo: RepoInfo = {
   path: store.get('lastRepoPath', '') as string,
   name: store.get('lastRepoName', 'No Project') as string,
   branch: store.get('lastRepoBranch', 'main') as string
@@ -122,215 +131,22 @@ function handleBranchChange(newBranch: string) {
   }
 }
 
-// Branch ownership management
-interface BranchOwnership {
-  branches: {
-    [branchName: string]: {
-      owner: string;
-      email: string;
-      createdAt: string;
-    }
-  }
-}
+// Branch ownership is now handled by BranchService
 
-async function getBranchOwnershipPath(): Promise<string> {
-  if (!currentRepo.path) throw new Error('No repository path');
-  return path.join(currentRepo.path, 'intentional.dev', 'branches', 'ownership.json');
-}
-
-async function ensureBranchesDirectory(): Promise<void> {
-  if (!currentRepo.path) return;
-  const branchesDir = path.join(currentRepo.path, 'intentional.dev', 'branches');
-  try {
-    await fs.mkdir(branchesDir, { recursive: true });
-  } catch (error) {
-    console.error('Failed to create branches directory:', error);
-  }
-}
-
-async function loadBranchOwnership(): Promise<BranchOwnership> {
-  try {
-    const filePath = await getBranchOwnershipPath();
-    const data = await fs.readFile(filePath, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    // File doesn't exist or is invalid, return empty
-    return { branches: {} };
-  }
-}
-
-async function loadTeamBranches(): Promise<{ teamBranches: string[], teamBranchPrefixes: string[] }> {
-  try {
-    const filePath = path.join(currentRepo.path, 'intentional.dev', 'branches', 'team-branches.json');
-    const data = await fs.readFile(filePath, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    // File doesn't exist or is invalid, return defaults
-    return {
-      teamBranches: ['main', 'master'],
-      teamBranchPrefixes: ['release/', 'hotfix/']
-    };
-  }
-}
-
-async function saveBranchOwnership(ownership: BranchOwnership): Promise<void> {
-  try {
-    await ensureBranchesDirectory();
-    const filePath = await getBranchOwnershipPath();
-    await fs.writeFile(filePath, JSON.stringify(ownership, null, 2));
-  } catch (error) {
-    console.error('Failed to save branch ownership:', error);
-  }
-}
-
-async function recordBranchOwner(branchName: string, owner: string, email: string): Promise<void> {
-  const ownership = await loadBranchOwnership();
-  ownership.branches[branchName] = {
-    owner,
-    email,
-    createdAt: new Date().toISOString()
-  };
-  await saveBranchOwnership(ownership);
-}
-
-// Git hooks management
-async function installGitHooks(): Promise<void> {
-  if (!currentRepo.path) return;
-  
-  try {
-    const hooksDir = path.join(currentRepo.path, '.git', 'hooks');
-    const intentionalHooksDir = path.join(__dirname, '..', 'src', 'hooks');
-    
-    // Ensure hooks directory exists
-    await fs.mkdir(hooksDir, { recursive: true });
-    
-    // Copy post-commit hook
-    const postCommitSource = path.join(intentionalHooksDir, 'post-commit');
-    const postCommitDest = path.join(hooksDir, 'post-commit');
-    
-    await fs.copyFile(postCommitSource, postCommitDest);
-    // Make it executable
-    await fs.chmod(postCommitDest, '755');
-    
-    console.log('Git hooks installed successfully');
-  } catch (error) {
-    console.error('Failed to install git hooks:', error);
-  }
-}
-
-async function ensureIntentionalDirectory(repoPath: string): Promise<void> {
-  try {
-    const intentionalDir = path.join(repoPath, '.intentional.dev');
-    const commitsDir = path.join(intentionalDir, 'commits');
-    const branchesDir = path.join(intentionalDir, 'branches');
-    
-    // Create all directories that might be used
-    await fs.mkdir(commitsDir, { recursive: true });
-    await fs.mkdir(branchesDir, { recursive: true });
-    
-    // Ensure .gitignore includes .intentional.dev/
-    await ensureGitignoreEntry(repoPath);
-    
-    console.log('Ensured .intentional.dev directory structure exists');
-  } catch (error) {
-    console.error('Failed to create .intentional.dev directory:', error);
-  }
-}
-
-async function ensureGitignoreEntry(repoPath: string): Promise<void> {
-  try {
-    const gitignorePath = path.join(repoPath, '.gitignore');
-    const entryToAdd = '.intentional.dev/';
-    
-    let content = '';
-    let exists = false;
-    
-    // Check if .gitignore exists and read its content
-    try {
-      content = await fs.readFile(gitignorePath, 'utf-8');
-      exists = true;
-    } catch (error) {
-      // File doesn't exist, we'll create it
-    }
-    
-    // Check if entry already exists
-    const lines = content.split('\n');
-    const hasEntry = lines.some(line => 
-      line.trim() === entryToAdd || 
-      line.trim() === '.intentional.dev' ||
-      line.trim() === '/.intentional.dev/'
-    );
-    
-    if (!hasEntry) {
-      // Add entry to .gitignore
-      const newContent = content + (content && !content.endsWith('\n') ? '\n' : '') + entryToAdd + '\n';
-      await fs.writeFile(gitignorePath, newContent);
-      console.log(`Added ${entryToAdd} to .gitignore`);
-      
-      // If this is a git repo and .gitignore was modified, stage it
-      if (exists) {
-        const git = simpleGit(repoPath);
-        await git.add('.gitignore');
-        console.log('Staged .gitignore changes');
-      }
-    }
-  } catch (error) {
-    console.error('Failed to update .gitignore:', error);
-  }
-}
+// File operations are now handled by FileService
 
 async function checkForUnprocessedCommits(): Promise<void> {
   if (!currentRepo.path) return;
-  
-  try {
-    const commitsDir = path.join(currentRepo.path, '.intentional.dev', 'commits');
-    
-    try {
-      const files = await fs.readdir(commitsDir);
-      const jsonFiles = files.filter(f => f.endsWith('.json'));
-      
-      for (const file of jsonFiles) {
-        const filePath = path.join(commitsDir, file);
-        const data = await fs.readFile(filePath, 'utf-8');
-        const commit = JSON.parse(data);
-        
-        if (!commit.processed) {
-          // Here's where the "product agent" would analyze the commit
-          console.log('Unprocessed commit found:', commit.hash);
-          
-          // For now, just mark it as processed
-          commit.processed = true;
-          commit.processedAt = new Date().toISOString();
-          
-          // In the future, this could:
-          // - Send to an AI agent for analysis
-          // - Generate insights about the changes
-          // - Suggest next steps
-          // - Create documentation
-          // - etc.
-          
-          await fs.writeFile(filePath, JSON.stringify(commit, null, 2));
-        }
-      }
-    } catch (error) {
-      // Directory might not exist yet
-      if ((error as any).code !== 'ENOENT') {
-        console.error('Error checking commits:', error);
-      }
-    }
-  } catch (error) {
-    console.error('Failed to check for unprocessed commits:', error);
-  }
+  await fileService.checkForUnprocessedCommits(currentRepo.path);
 }
 
 async function updateGitInfo() {
   if (!currentRepo.path) return;
   
   try {
-    const git = simpleGit(currentRepo.path);
     const [branchInfo, status] = await Promise.all([
-      git.branchLocal(),
-      git.status()
+      gitService.getBranches(),
+      gitService.getStatus()
     ]);
     
     // Check for branch changes
@@ -359,14 +175,14 @@ async function updateGitInfo() {
 async function loadRepository(repoPath: string) {
   console.log('loadRepository called with:', repoPath);
   try {
-    const git = simpleGit(repoPath);
-    const isRepo = await git.checkIsRepo();
+    gitService.setRepository(repoPath);
+    const isRepo = await gitService.checkIsRepo();
     console.log('Is valid repo:', isRepo);
     
     if (isRepo) {
       currentRepo.path = repoPath;
       currentRepo.name = path.basename(repoPath);
-      const branch = await git.branchLocal();
+      const branch = await gitService.getBranches();
       console.log('Current git branch:', branch.current);
       console.log('Stored branch was:', currentRepo.branch);
       
@@ -383,10 +199,10 @@ async function loadRepository(repoPath: string) {
       }
       
       // Install git hooks for this repository
-      await installGitHooks();
+      await fileService.installGitHooks(repoPath, path.join(__dirname, '..', 'src', 'hooks'));
       
       // Ensure .intentional.dev directory exists (so it's already ignored by git)
-      await ensureIntentionalDirectory(repoPath);
+      await fileService.ensureIntentionalDirectory(repoPath);
       
       console.log('Loaded repository:', currentRepo);
       return true;
@@ -412,8 +228,7 @@ ipcMain.handle('git:status', async () => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
   try {
-    const git = simpleGit(currentRepo.path);
-    const status = await git.status();
+    const status = await gitService.getStatus();
     return { status };
   } catch (error: any) {
     return { error: error.message || 'Unknown error' };
@@ -423,63 +238,17 @@ ipcMain.handle('git:status', async () => {
 ipcMain.handle('git:getBranchOwner', async (_, branchName: string) => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
-  try {
-    // First check our ownership file
-    const ownership = await loadBranchOwnership();
-    if (ownership.branches[branchName]) {
-      return {
-        owner: ownership.branches[branchName].owner,
-        email: ownership.branches[branchName].email
-      };
-    }
-    
-    // If not in file, check git history (for existing branches)
-    const git = simpleGit(currentRepo.path);
-    
-    try {
-      // Get the merge base with main to find where branch diverged
-      const mergeBase = await git.raw(['merge-base', 'main', branchName]);
-      const baseCommit = mergeBase.trim();
-      
-      // Get first commit after the merge base on this branch
-      const branchCommits = await git.raw(['rev-list', `${baseCommit}..${branchName}`, '--reverse']);
-      const firstUniqueCommit = branchCommits.split('\n')[0]?.trim();
-      
-      if (firstUniqueCommit) {
-        // Get author of first unique commit
-        const commitInfo = await git.show([firstUniqueCommit, '--format=%an%n%ae', '--no-patch']);
-        const [author, email] = commitInfo.split('\n');
-        
-        // Save this info for future reference
-        await recordBranchOwner(branchName, author, email);
-        
-        return {
-          owner: author,
-          email: email
-        };
-      }
-    } catch (gitError) {
-      // Branch might not have a common ancestor with main, or main might not exist
-      console.log('Could not determine branch owner from git history:', gitError);
-    }
-    
-    return { owner: null, email: null };
-  } catch (error: any) {
-    console.error('Failed to get branch owner:', error);
-    return { owner: null, email: null };
-  }
+  return await branchService.getBranchOwner(currentRepo.path, branchName);
 });
 
 ipcMain.handle('git:checkAuth', async () => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
   try {
-    const git = simpleGit(currentRepo.path);
-    
     // Check if user.name and user.email are configured
     const [userName, userEmail] = await Promise.all([
-      git.getConfig('user.name'),
-      git.getConfig('user.email')
+      gitService.getConfig('user.name'),
+      gitService.getConfig('user.email')
     ]);
     
     if (!userName.value || !userEmail.value) {
@@ -494,10 +263,10 @@ ipcMain.handle('git:checkAuth', async () => {
     }
     
     // Check for credential helper
-    const credentialHelper = await git.getConfig('credential.helper');
+    const credentialHelper = await gitService.getConfig('credential.helper');
     
     // Check for remotes
-    const remotes = await git.getRemotes(true);
+    const remotes = await gitService.getRemotes(true);
     
     return {
       configured: true,
@@ -505,7 +274,7 @@ ipcMain.handle('git:checkAuth', async () => {
       userEmail: userEmail.value,
       credentialHelper: credentialHelper.value || 'none',
       hasRemotes: remotes.length > 0,
-      remotes: remotes.map(r => ({
+      remotes: remotes.map((r: any) => ({
         name: r.name,
         url: r.refs.push || r.refs.fetch
       }))
@@ -519,10 +288,8 @@ ipcMain.handle('git:save', async (_, message: string, forceCommit?: boolean) => 
   if (!currentRepo.path) return { error: 'No repository selected' };
   
   try {
-    const git = simpleGit(currentRepo.path);
-    
     // Check if there are changes to commit
-    const status = await git.status();
+    const status = await gitService.getStatus();
     if (status.files.length === 0) {
       return { error: 'No changes to save' };
     }
@@ -531,36 +298,15 @@ ipcMain.handle('git:save', async (_, message: string, forceCommit?: boolean) => 
     if (!forceCommit && currentRepo.branch !== 'main') {
       // Get current user
       const [userName, userEmail] = await Promise.all([
-        git.getConfig('user.name'),
-        git.getConfig('user.email')
+        gitService.getConfig('user.name'),
+        gitService.getConfig('user.email')
       ]);
       
       const currentUser = userName.value;
       const currentEmail = userEmail.value;
       
       // Get branch owner
-      let branchOwnerResult;
-      try {
-        const git2 = simpleGit(currentRepo.path);
-        // Get the merge base with main to find where branch diverged
-        const mergeBase = await git2.raw(['merge-base', 'main', currentRepo.branch]);
-        const baseCommit = mergeBase.trim();
-        
-        // Get first commit after the merge base on this branch
-        const branchCommits = await git2.raw(['rev-list', `${baseCommit}..${currentRepo.branch}`, '--reverse']);
-        const firstUniqueCommit = branchCommits.split('\n')[0]?.trim();
-        
-        if (firstUniqueCommit) {
-          // Get author of first unique commit
-          const commitInfo = await git2.show([firstUniqueCommit, '--format=%an%n%ae', '--no-patch']);
-          const [author, email] = commitInfo.split('\n');
-          branchOwnerResult = { owner: author, email: email };
-        } else {
-          branchOwnerResult = { owner: null, email: null };
-        }
-      } catch (err) {
-        branchOwnerResult = { owner: null, email: null };
-      }
+      const branchOwnerResult = await branchService.getBranchOwner(currentRepo.path, currentRepo.branch);
       
       if (branchOwnerResult.owner && branchOwnerResult.email) {
         // Check if current user owns the branch
@@ -576,12 +322,12 @@ ipcMain.handle('git:save', async (_, message: string, forceCommit?: boolean) => 
       }
     }
     
-    await git.add('.');
-    await git.commit(message || 'WIP');
+    await gitService.addAll();
+    await gitService.commit(message || 'WIP');
     
     // Try to push, but don't fail if it doesn't work
     try {
-      await git.push();
+      await gitService.push();
       return { success: true, pushed: true };
     } catch (pushError: any) {
       // Commit succeeded but push failed
@@ -601,9 +347,8 @@ ipcMain.handle('git:sync', async () => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
   try {
-    const git = simpleGit(currentRepo.path);
-    await git.fetch();
-    await git.pull();
+    await gitService.fetch();
+    await gitService.pull();
     return { success: true };
   } catch (error: any) {
     return { error: error.message || 'Unknown error' };
@@ -614,102 +359,34 @@ ipcMain.handle('git:sync', async () => {
 ipcMain.handle('git:timeTravelTo', async (_, commitHash: string) => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
-  try {
-    const git = simpleGit(currentRepo.path);
-    
-    // First time travel - save current state
-    if (!timeTravelState.isActive) {
-      // Get current branch
-      const branches = await git.branchLocal();
-      timeTravelState.originalBranch = branches.current;
-      
-      // Check for uncommitted changes
-      const status = await git.status();
-      if (!status.isClean()) {
-        // Stash changes
-        await git.stash(['push', '-m', 'Intentional time-travel stash']);
-        timeTravelState.hasStash = true;
-      }
-      
-      timeTravelState.isActive = true;
-    }
-    
-    // Checkout the commit
-    await git.checkout(commitHash);
-    timeTravelState.currentCommit = commitHash;
-    
-    // Get commit info
-    const log = await git.log([commitHash, '-n', '1']);
-    const commit = log.latest;
-    
-    if (!commit) {
-      throw new Error('Commit not found');
-    }
-    
-    return { 
-      success: true,
-      commit: {
-        hash: commit.hash,
-        message: commit.message,
-        author: commit.author_name,
-        date: commit.date
-      },
-      isTimeTravel: true,
-      originalBranch: timeTravelState.originalBranch
-    };
-  } catch (error: any) {
-    return { error: error.message || 'Failed to travel to commit' };
+  const result = await gitService.timeTravelTo(commitHash);
+  if (result.success && result.originalBranch) {
+    handleBranchChange(result.originalBranch);
   }
+  return result;
 });
 
 ipcMain.handle('git:timeTravelReturn', async () => {
-  if (!currentRepo.path || !timeTravelState.isActive) {
+  if (!currentRepo.path) return { error: 'No repository selected' };
+  
+  const state = gitService.getTimeTravelState();
+  if (!state.isActive) {
     return { error: 'Not in time travel mode' };
   }
   
-  try {
-    const git = simpleGit(currentRepo.path);
-    
-    // Return to original branch
-    await git.checkout(timeTravelState.originalBranch);
-    
-    // Pop stash if we had one
-    if (timeTravelState.hasStash) {
-      try {
-        await git.stash(['pop']);
-      } catch (err) {
-        console.error('Failed to pop stash:', err);
-        // Continue anyway - user can recover stash manually
-      }
-    }
-    
-    // Store original branch before reset
-    const originalBranch = timeTravelState.originalBranch;
-    
-    // Reset state
-    timeTravelState = {
-      isActive: false,
-      originalBranch: '',
-      hasStash: false,
-      currentCommit: ''
-    };
-    
-    handleBranchChange(originalBranch);
-    
-    return { success: true };
-  } catch (error: any) {
-    return { error: error.message || 'Failed to return from time travel' };
+  const result = await gitService.timeTravelReturn();
+  if (result.success) {
+    handleBranchChange(state.originalBranch);
   }
+  return result;
 });
 
 ipcMain.handle('git:push', async () => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
   try {
-    const git = simpleGit(currentRepo.path);
-    
     // Check if we have a remote configured
-    const remotes = await git.getRemotes(true);
+    const remotes = await gitService.getRemotes(true);
     if (remotes.length === 0) {
       return { 
         error: 'No remote repository configured',
@@ -718,7 +395,7 @@ ipcMain.handle('git:push', async () => {
       };
     }
     
-    await git.push();
+    await gitService.push();
     return { success: true };
   } catch (error: any) {
     const errorMessage = error.message || 'Unknown error';
@@ -785,28 +462,12 @@ ipcMain.handle('repo:select', async () => {
   
   if (!result.canceled && result.filePaths.length > 0) {
     const repoPath = result.filePaths[0];
-    try {
-      const git = simpleGit(repoPath);
-      const isRepo = await git.checkIsRepo();
-      
-      if (isRepo) {
-        currentRepo.path = repoPath;
-        currentRepo.name = path.basename(repoPath);
-        const branch = await git.branchLocal();
-        
-        // Save to persistent storage
-        store.set('lastRepoPath', repoPath);
-        store.set('lastRepoName', currentRepo.name);
-        
-        // Use handleBranchChange to set branch and notify
-        handleBranchChange(branch.current);
-        
-        return { success: true, repo: currentRepo };
-      } else {
-        return { error: 'Selected directory is not a Git repository' };
-      }
-    } catch (error: any) {
-      return { error: error.message || 'Unknown error' };
+    const loaded = await loadRepository(repoPath);
+    
+    if (loaded) {
+      return { success: true, repo: currentRepo };
+    } else {
+      return { error: 'Selected directory is not a Git repository' };
     }
   }
   
@@ -870,9 +531,8 @@ ipcMain.handle('collab:write', async (_, data: any) => {
     await fs.writeFile(collabPath, JSON.stringify(data, null, 2));
     
     // Auto-commit collaboration changes
-    const git = simpleGit(currentRepo.path);
-    await git.add('intentional.dev/collaboration/garett.json');
-    await git.commit('Update collaboration data');
+    await gitService.addAll();
+    await gitService.commit('Update collaboration data');
     
     return { success: true };
   } catch (error: any) {
@@ -884,10 +544,8 @@ ipcMain.handle('collab:readTeam', async () => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
   try {
-    const git = simpleGit(currentRepo.path);
-    
     // Fetch latest changes
-    await git.fetch();
+    await gitService.fetch();
     
     // Get list of collaboration files from other team members
     // For now, we'll just check for a partner.json file
@@ -895,7 +553,7 @@ ipcMain.handle('collab:readTeam', async () => {
     
     try {
       // Try to read partner's data using git show
-      const partnerData = await git.show(['origin/main:intentional.dev/collaboration/partner.json']);
+      const partnerData = await gitService.show(['origin/main:intentional.dev/collaboration/partner.json']);
       teamData.push(JSON.parse(partnerData));
     } catch (e) {
       // Partner file doesn't exist yet
@@ -922,8 +580,7 @@ ipcMain.handle('app:openGithub', async () => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
   try {
-    const git = simpleGit(currentRepo.path);
-    const remotes = await git.getRemotes(true);
+    const remotes = await gitService.getRemotes(true);
     
     if (remotes.length === 0) {
       return { error: 'No remote repository configured' };
@@ -955,8 +612,7 @@ ipcMain.handle('changes:preview', async () => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
   try {
-    const git = simpleGit(currentRepo.path);
-    const status = await git.status();
+    const status = await gitService.getStatus();
     
     // Create preview window
     const previewWindow = new BrowserWindow({
@@ -1003,7 +659,7 @@ ipcMain.handle('branches:open', async () => {
     const gitData = await fetcher.fetchComprehensiveData();
     
     // Load team branches configuration
-    const teamBranchConfig = await loadTeamBranches();
+    const teamBranchConfig = await branchService.loadTeamBranches(currentRepo.path);
     
     console.log('Fetched git data:');
     console.log('- Branches:', gitData.branches.length);
@@ -1025,7 +681,7 @@ ipcMain.handle('branches:open', async () => {
     branchWindow.loadFile(path.join(__dirname, '..', 'src', 'branch-manager.html'));
     
     // Load branch ownership data
-    const branchOwnership = await loadBranchOwnership();
+    const branchOwnership = await branchService.loadBranchOwnership(currentRepo.path);
     
     // Send data after window is ready
     branchWindow.webContents.once('did-finish-load', () => {
@@ -1038,8 +694,7 @@ ipcMain.handle('branches:open', async () => {
     });
     
     // Non-blocking fetch in background
-    const git = simpleGit(currentRepo.path);
-    git.fetch().then(() => {
+    gitService.fetch().then(() => {
       console.log('Git fetch completed');
       // Could send update to window if needed
     }).catch(err => {
@@ -1052,45 +707,37 @@ ipcMain.handle('branches:open', async () => {
   }
 });
 
-// Track time travel state
-let timeTravelState = {
-  isActive: false,
-  originalBranch: '',
-  hasStash: false,
-  currentCommit: ''
-};
+// Time travel state is now managed by GitService
 
 // Branch operation handlers
 ipcMain.handle('git:createBranch', async (_, branchName: string) => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
   try {
-    const git = simpleGit(currentRepo.path);
-    
     // Get current user info
     const [userName, userEmail] = await Promise.all([
-      git.getConfig('user.name'),
-      git.getConfig('user.email')
+      gitService.getConfig('user.name'),
+      gitService.getConfig('user.email')
     ]);
     
     // Create the branch
-    await git.checkoutBranch(branchName, currentRepo.branch);
+    await gitService.checkoutBranch(branchName, currentRepo.branch);
     
     // Record ownership
     if (userName.value && userEmail.value) {
-      await recordBranchOwner(branchName, userName.value, userEmail.value);
+      await branchService.recordBranchOwner(currentRepo.path, branchName, userName.value, userEmail.value);
       
       // Commit the ownership file
       try {
-        await git.add('intentional.dev/branches/ownership.json');
-        await git.commit(`Initialize branch ownership for ${branchName}
+        await gitService.addAll();
+        await gitService.commit(`Initialize branch ownership for ${branchName}
 
 This branch is owned by ${userName.value}
 Automatically generated by Intentional`);
         
         // Try to push if remote exists
         try {
-          await git.push('origin', branchName, ['--set-upstream']);
+          await gitService.push('origin', branchName, ['--set-upstream']);
         } catch (pushError) {
           // Push might fail if no remote or no auth, that's ok
           console.log('Could not push new branch:', pushError);
@@ -1112,8 +759,7 @@ ipcMain.handle('git:switchBranch', async (_, branchName: string) => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
   try {
-    const git = simpleGit(currentRepo.path);
-    await git.checkout(branchName);
+    await gitService.checkout(branchName);
     handleBranchChange(branchName);
     return { success: true, branch: branchName };
   } catch (error: any) {
@@ -1125,12 +771,11 @@ ipcMain.handle('git:deleteBranch', async (_, branchName: string) => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
   try {
-    const git = simpleGit(currentRepo.path);
     // Don't allow deleting current branch
     if (branchName === currentRepo.branch) {
       return { error: 'Cannot delete current branch' };
     }
-    await git.deleteLocalBranch(branchName);
+    await gitService.deleteLocalBranch(branchName);
     return { success: true };
   } catch (error: any) {
     return { error: error.message || 'Failed to delete branch' };
@@ -1141,16 +786,14 @@ ipcMain.handle('git:claimBranch', async (_, branchName: string) => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
   try {
-    const git = simpleGit(currentRepo.path);
-    
     // Get current user info
     const [userName, userEmail] = await Promise.all([
-      git.getConfig('user.name'),
-      git.getConfig('user.email')
+      gitService.getConfig('user.name'),
+      gitService.getConfig('user.email')
     ]);
     
     if (userName.value && userEmail.value) {
-      await recordBranchOwner(branchName, userName.value, userEmail.value);
+      await branchService.recordBranchOwner(currentRepo.path, branchName, userName.value, userEmail.value);
       return { success: true, owner: userName.value, email: userEmail.value };
     } else {
       return { error: 'Git user not configured' };
@@ -1164,32 +807,9 @@ ipcMain.handle('git:getBranches', async () => {
   if (!currentRepo.path) return { error: 'No repository selected' };
   
   try {
-    const git = simpleGit(currentRepo.path);
-    const branches = await git.branchLocal();
-    
-    // Get branch details with last commit info
-    const branchDetails = [];
-    for (const branch of branches.all) {
-      try {
-        const branchLog = await git.log([branch, '-n', '1']);
-        const lastCommit = branchLog.latest;
-        branchDetails.push({
-          name: branch,
-          lastCommit: lastCommit ? {
-            hash: lastCommit.hash,
-            message: lastCommit.message,
-            author: lastCommit.author_name,
-            email: lastCommit.author_email,
-            date: lastCommit.date
-          } : null
-        });
-      } catch (err) {
-        console.error(`Failed to get details for branch ${branch}:`, err);
-      }
-    }
-    
-    // Load team branches configuration
-    const teamBranchConfig = await loadTeamBranches();
+    const branches = await gitService.getBranches();
+    const branchDetails = await branchService.getAllBranchDetails(currentRepo.path);
+    const teamBranchConfig = await branchService.loadTeamBranches(currentRepo.path);
     
     return { 
       success: true, 
@@ -1205,8 +825,10 @@ ipcMain.handle('git:getBranches', async () => {
 
 // Hook management handlers
 ipcMain.handle('hooks:install', async () => {
+  if (!currentRepo.path) return { error: 'No repository selected' };
+  
   try {
-    await installGitHooks();
+    await fileService.installGitHooks(currentRepo.path, path.join(__dirname, '..', 'src', 'hooks'));
     return { success: true };
   } catch (error: any) {
     return { error: error.message || 'Failed to install hooks' };
