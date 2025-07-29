@@ -190,6 +190,71 @@
   color: var(--accent-primary);
 }
 
+.task-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.task-priority {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.task-priority.priority-low {
+  background: rgba(110, 118, 129, 0.15);
+  color: var(--text-tertiary);
+}
+
+.task-priority.priority-medium {
+  background: rgba(210, 153, 34, 0.15);
+  color: var(--accent-warning);
+}
+
+.task-priority.priority-high {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--accent-danger);
+}
+
+.task-status {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.task-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.task-item:hover .task-actions {
+  opacity: 1;
+}
+
+.task-action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 14px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.task-action-btn:hover {
+  opacity: 1;
+}
+
+.team-task .task-checkbox {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 /* Build specific styles */
 .build-item {
   display: flex;

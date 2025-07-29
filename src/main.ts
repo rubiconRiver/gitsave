@@ -93,6 +93,7 @@ mb.on('ready', async () => {
   ipcRouter.registerModule(handlers.collabHandlers);
   ipcRouter.registerModule(handlers.appHandlers);
   ipcRouter.registerModule(handlers.hookHandlers);
+  ipcRouter.registerModule(handlers.taskHandlers);
 
   console.log('Intentional is ready!');
   console.log('Initial currentRepo:', stateManager.getStateValue('currentRepo'));

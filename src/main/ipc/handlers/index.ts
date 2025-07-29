@@ -4,3 +4,4 @@ export { licenseHandlers } from './licenseHandlers';
 export { collabHandlers } from './collabHandlers';
 export { appHandlers } from './appHandlers';
 export { hookHandlers } from './hookHandlers';
+export { taskHandlers } from './taskHandlers';

@@ -561,72 +561,50 @@ function initializeCollaboration() {
 
 async function loadCollaborationData() {
   try {
-    // Load user's own collaboration data
-    const result = await window.collabAPI.read();
-    if (result.success) {
-      collaborationData = result.data;
-      renderCollaborationData();
-    }
+    // Load tasks using the new task API
+    const myTasksResult = await window.taskAPI.getMine();
+    const allTasksResult = await window.taskAPI.getAll();
     
-    // Load team data
-    const teamResult = await window.collabAPI.readTeam();
-    if (teamResult.success) {
-      renderTeamData(teamResult.data);
+    if (myTasksResult.success && allTasksResult.success) {
+      renderTaskData(myTasksResult.tasks, allTasksResult.tasks);
     }
   } catch (error) {
     console.error('Failed to load collaboration data:', error);
   }
 }
 
-function renderCollaborationData() {
-  if (!collaborationData) return;
-  
-  // Render goals
+function renderTaskData(myTasks, allTasks) {
+  // For now, render placeholder content for goals and builds
   const goalsContainer = document.getElementById('project-goals');
-  if (goalsContainer && collaborationData.goals) {
-    if (collaborationData.goals.length === 0) {
-      goalsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📌</div>No project goals set</div>';
-    } else {
-      goalsContainer.innerHTML = collaborationData.goals.map(goal => `
-        <div class="goal-item" data-goal-id="${goal.id}">
-          <div class="goal-text">${escapeHtml(goal.title)}</div>
-        </div>
-      `).join('');
-    }
+  if (goalsContainer) {
+    goalsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📌</div>No project goals set</div>';
   }
   
-  // Render builds
   const buildsContainer = document.getElementById('recent-builds');
-  if (buildsContainer && collaborationData.builds) {
-    if (collaborationData.builds.length === 0) {
-      buildsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏗️</div>No recent builds</div>';
-    } else {
-      buildsContainer.innerHTML = collaborationData.builds.map(build => `
-        <div class="build-item">
-          <div class="build-info">
-            <div class="build-version">${escapeHtml(build.version)}</div>
-            <div class="build-time">${formatTime(build.timestamp)} by ${escapeHtml(build.author)}</div>
-          </div>
-          <span class="build-status ${build.status}">${build.status}</span>
-        </div>
-      `).join('');
-    }
+  if (buildsContainer) {
+    buildsContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏗️</div>No recent builds</div>';
   }
   
-  // Render my tasks (tasks assigned by me to others)
+  // Render my tasks (tasks I created)
   const myTasksContainer = document.getElementById('my-tasks');
   const myTaskCount = document.getElementById('my-task-count');
-  if (myTasksContainer && collaborationData.tasks) {
-    const myTasks = collaborationData.tasks.filter(task => task.assignedBy === collaborationData.username);
+  if (myTasksContainer) {
     if (myTasks.length === 0) {
-      myTasksContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">✅</div>No tasks assigned by you</div>';
+      myTasksContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">✅</div>No tasks created by you</div>';
     } else {
       myTasksContainer.innerHTML = myTasks.map(task => `
         <div class="task-item" data-task-id="${task.id}">
-          <div class="task-checkbox ${task.status === 'completed' ? 'checked' : ''}" onclick="toggleTask('${task.id}')"></div>
+          <div class="task-checkbox ${task.status === 'done' ? 'checked' : ''}" onclick="toggleTask('${task.id}')"></div>
           <div class="task-content">
             <div class="task-text">${escapeHtml(task.title)}</div>
-            <div class="task-assignee">To: ${escapeHtml(task.assignee)}</div>
+            <div class="task-meta">
+              <span class="task-priority priority-${task.priority}">${task.priority}</span>
+              <span class="task-status">${task.status}</span>
+            </div>
+          </div>
+          <div class="task-actions">
+            <button class="task-action-btn" onclick="editTask('${task.id}')" title="Edit">✏️</button>
+            <button class="task-action-btn" onclick="deleteTask('${task.id}')" title="Delete">🗑️</button>
           </div>
         </div>
       `).join('');
@@ -635,42 +613,38 @@ function renderCollaborationData() {
       myTaskCount.textContent = myTasks.length > 0 ? myTasks.length.toString() : '';
     }
   }
-}
-
-function renderTeamData(teamMembers) {
-  // Render team tasks (tasks assigned to me by others)
+  
+  // Render team tasks (tasks from other team members)
   const teamTasksContainer = document.getElementById('team-tasks');
   const teamTaskCount = document.getElementById('team-task-count');
-  
   if (teamTasksContainer) {
-    const allTeamTasks = [];
-    teamMembers.forEach(member => {
-      if (member.tasks) {
-        const tasksForMe = member.tasks.filter(task => 
-          task.assignee === 'Garett' || task.assignee === collaborationData?.username
-        );
-        allTeamTasks.push(...tasksForMe.map(task => ({ ...task, fromMember: member.username })));
-      }
-    });
+    // Filter out my own tasks to show only team members' tasks
+    const currentUser = myTasks.length > 0 ? myTasks[0].assignee : 'unknown';
+    const teamTasks = allTasks.filter(task => task.assignee !== currentUser);
     
-    if (allTeamTasks.length === 0) {
-      teamTasksContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">👥</div>No tasks assigned to you</div>';
+    if (teamTasks.length === 0) {
+      teamTasksContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">👥</div>No tasks from team members</div>';
     } else {
-      teamTasksContainer.innerHTML = allTeamTasks.map(task => `
-        <div class="task-item team-task" data-task-id="${task.id}" data-from="${task.fromMember}">
-          <div class="task-checkbox ${task.status === 'completed' ? 'checked' : ''}" onclick="toggleTeamTask('${task.id}', '${task.fromMember}')"></div>
+      teamTasksContainer.innerHTML = teamTasks.map(task => `
+        <div class="task-item team-task" data-task-id="${task.id}">
+          <div class="task-checkbox ${task.status === 'done' ? 'checked' : ''}" disabled></div>
           <div class="task-content">
             <div class="task-text">${escapeHtml(task.title)}</div>
-            <div class="task-assignee for-me">From: ${escapeHtml(task.assignedBy)}</div>
+            <div class="task-meta">
+              <span class="task-assignee">By: ${escapeHtml(task.assignee)}</span>
+              <span class="task-priority priority-${task.priority}">${task.priority}</span>
+              <span class="task-status">${task.status}</span>
+            </div>
           </div>
         </div>
       `).join('');
     }
     if (teamTaskCount) {
-      teamTaskCount.textContent = allTeamTasks.length > 0 ? allTeamTasks.length.toString() : '';
+      teamTaskCount.textContent = teamTasks.length > 0 ? teamTasks.length.toString() : '';
     }
   }
 }
+
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -697,26 +671,34 @@ function formatTime(timestamp) {
 
 // Task management functions
 window.toggleTask = async function(taskId) {
-  if (!collaborationData) return;
-  
-  const task = collaborationData.tasks.find(t => t.id === taskId);
-  if (task) {
-    task.status = task.status === 'completed' ? 'pending' : 'completed';
-    task.updatedAt = new Date().toISOString();
+  try {
+    const currentStatus = document.querySelector(`[data-task-id="${taskId}"] .task-status`)?.textContent;
+    const newStatus = currentStatus === 'done' ? 'todo' : 'done';
     
-    // Save changes
-    const result = await window.collabAPI.write(collaborationData);
+    const result = await window.taskAPI.updateStatus(taskId, newStatus);
     if (result.success) {
-      renderCollaborationData();
+      await loadCollaborationData();
+      showSuccess('Task updated!');
+    } else {
+      showError('Failed to update task: ' + result.error);
     }
+  } catch (error) {
+    showError('Failed to update task');
   }
 };
 
-window.toggleTeamTask = async function(taskId, fromMember) {
-  // For team tasks, we'd need to implement a way to update the other person's file
-  // For now, just show a message
-  console.log('Toggle team task:', taskId, 'from:', fromMember);
-  alert('Team task status updates coming soon!');
+window.editTask = async function(taskId) {
+  // TODO: Implement task editing
+  console.log('Edit task:', taskId);
+  alert('Task editing coming soon!');
+};
+
+window.deleteTask = async function(taskId) {
+  if (confirm('Are you sure you want to delete this task?')) {
+    // TODO: Add delete functionality to task API
+    console.log('Delete task:', taskId);
+    alert('Task deletion coming soon!');
+  }
 };
 
 function loadMockCollaborationData() {
@@ -841,43 +823,19 @@ window.createTask = async function() {
     return;
   }
   
-  const newTask = {
-    id: `task-${Date.now()}`,
-    title: title,
-    description: document.getElementById('task-description').value.trim(),
-    assignee: document.getElementById('task-assignee').value,
-    assignedBy: collaborationData?.username || 'Garett',
-    status: 'pending',
-    priority: document.getElementById('task-priority').value,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
+  const priority = document.getElementById('task-priority').value;
   
-  // Add to collaboration data
-  if (!collaborationData) {
-    collaborationData = {
-      username: 'garett',
-      email: 'garett.gelsinger@gmail.com',
-      tasks: [],
-      goals: [],
-      builds: [],
-      updates: []
-    };
-  }
-  
-  if (!collaborationData.tasks) {
-    collaborationData.tasks = [];
-  }
-  
-  collaborationData.tasks.push(newTask);
-  
-  // Save
-  const result = await window.collabAPI.write(collaborationData);
-  if (result.success) {
-    closeAddTaskDialog();
-    renderCollaborationData();
-  } else {
-    alert('Failed to create task: ' + (result.error || 'Unknown error'));
+  try {
+    const result = await window.taskAPI.create(title, priority);
+    if (result.success) {
+      closeAddTaskDialog();
+      await loadCollaborationData();
+      showSuccess('Task created!');
+    } else {
+      alert('Failed to create task: ' + (result.error || 'Unknown error'));
+    }
+  } catch (error) {
+    alert('Failed to create task');
   }
 };
 
@@ -897,3 +855,4 @@ function clearLoadingState() {
 
 // Load collaboration panel on startup
 loadCollaborationPanel();
+

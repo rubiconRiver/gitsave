@@ -39,3 +39,10 @@ contextBridge.exposeInMainWorld('collabAPI', {
   write: (data: any) => ipcRenderer.invoke('collab:write', data),
   readTeam: () => ipcRenderer.invoke('collab:readTeam'),
 });
+
+contextBridge.exposeInMainWorld('taskAPI', {
+  create: (title: string, priority?: string) => ipcRenderer.invoke('tasks:create', title, priority),
+  getMine: () => ipcRenderer.invoke('tasks:getMine'),
+  getAll: () => ipcRenderer.invoke('tasks:getAll'),
+  updateStatus: (taskId: string, status: string) => ipcRenderer.invoke('tasks:updateStatus', taskId, status)
+});
