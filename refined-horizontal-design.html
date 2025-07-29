@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitSave - Refined Horizontal Bar</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #c9d1d9;
+            padding: 40px 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #58a6ff;
+            margin-bottom: 40px;
+            font-size: 32px;
+        }
+        
+        h2 {
+            color: #58a6ff;
+            margin: 60px 0 20px;
+            font-size: 24px;
+        }
+        
+        .mockup-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        /* Mockup Chrome */
+        .mockup {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            margin-bottom: 40px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+        
+        /* Widget Bar - No header, straight to content */
+        .widget-bar {
+            display: flex;
+            align-items: stretch;
+            padding: 10px;
+            gap: 10px;
+            min-height: 80px;
+            background: #0d1117;
+        }
+        
+        /* Widgets */
+        .widget {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+        
+        .widget:hover {
+            border-color: #58a6ff;
+            box-shadow: 0 4px 12px rgba(88, 166, 255, 0.15);
+        }
+        
+        .widget-header {
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #8b949e;
+            font-weight: 500;
+        }
+        
+        .widget-title {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .widget-icon {
+            font-size: 14px;
+        }
+        
+        .widget-content {
+            padding: 10px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Save Widget - Special styling */
+        .save-widget {
+            background: #238636;
+            border-color: #2ea043;
+            min-width: 180px;
+        }
+        
+        .save-widget:hover {
+            background: #2ea043;
+            border-color: #3fb950;
+            box-shadow: 0 4px 16px rgba(63, 185, 80, 0.3);
+        }
+        
+        .save-widget .widget-header {
+            color: rgba(255,255,255,0.9);
+        }
+        
+        .save-button {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .save-button:hover {
+            background: rgba(255,255,255,0.25);
+            transform: translateY(-1px);
+        }
+        
+        .save-button:active {
+            transform: translateY(0);
+        }
+        
+        /* Status Widget */
+        .status-widget {
+            min-width: 200px;
+            position: relative;
+        }
+        
+        .file-list {
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .file-status {
+            font-weight: 600;
+            width: 14px;
+        }
+        
+        .file-status.added { color: #3fb950; }
+        .file-status.modified { color: #f0883e; }
+        .file-status.deleted { color: #f85149; }
+        
+        /* Expandable status */
+        .status-widget.expanded {
+            min-width: 300px;
+        }
+        
+        .status-widget.expanded .widget-content {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .expand-toggle {
+            font-size: 10px;
+            color: #58a6ff;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+        
+        /* Branch Widget */
+        .branch-widget {
+            min-width: 160px;
+        }
+        
+        .branch-display {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            background: #0d1117;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .branch-display:hover {
+            background: #21262d;
+        }
+        
+        .branch-actions {
+            display: flex;
+            gap: 6px;
+        }
+        
+        .mini-button {
+            padding: 4px 10px;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #c9d1d9;
+        }
+        
+        .mini-button:hover {
+            background: #30363d;
+            border-color: #58a6ff;
+        }
+        
+        /* Sync Widget */
+        .sync-widget {
+            min-width: 120px;
+        }
+        
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .sync-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        
+        .sync-indicator.synced { background: #3fb950; }
+        .sync-indicator.behind { background: #f0883e; }
+        .sync-indicator.ahead { background: #58a6ff; }
+        
+        /* Utils Widget */
+        .utils-widget {
+            min-width: 100px;
+        }
+        
+        .util-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        
+        .util-btn {
+            aspect-ratio: 1;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 16px;
+        }
+        
+        .util-btn:hover {
+            background: #30363d;
+            border-color: #58a6ff;
+        }
+        
+        .util-label {
+            font-size: 9px;
+            color: #8b949e;
+            margin-top: 2px;
+        }
+        
+        /* Spacer */
+        .spacer {
+            flex: 1;
+        }
+        
+        /* Scrollbar styling */
+        .widget-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .widget-content::-webkit-scrollbar-track {
+            background: #0d1117;
+        }
+        
+        .widget-content::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 3px;
+        }
+        
+        .widget-content::-webkit-scrollbar-thumb:hover {
+            background: #484f58;
+        }
+        
+        /* Collapsed state */
+        .widget.collapsed {
+            min-width: 50px;
+        }
+        
+        .widget.collapsed .widget-header span:not(.widget-icon) {
+            display: none;
+        }
+        
+        .widget.collapsed .widget-content > *:not(.collapse-icon) {
+            display: none;
+        }
+        
+        .collapse-icon {
+            font-size: 20px;
+            text-align: center;
+            color: #8b949e;
+        }
+    </style>
+</head>
+<body>
+    <h1>GitSave - Refined Horizontal Bar</h1>
+
+    <div class="mockup-container">
+        <!-- Design 1: Default View -->
+        <h2>Design 1: Default View (Clean, No Changes)</h2>
+        <div class="mockup">
+            <div class="widget-bar">
+                <!-- Utils -->
+                <div class="widget utils-widget">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">🛠</span>
+                            <span>Utils</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div class="util-buttons">
+                            <div class="util-btn">
+                                <div>📁</div>
+                                <div class="util-label">Folder</div>
+                            </div>
+                            <div class="util-btn">
+                                <div>🌐</div>
+                                <div class="util-label">GitHub</div>
+                            </div>
+                            <div class="util-btn">
+                                <div>🤖</div>
+                                <div class="util-label">Claude</div>
+                            </div>
+                            <div class="util-btn">
+                                <div>⚡</div>
+                                <div class="util-label">Term</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sync -->
+                <div class="widget sync-widget">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">🔄</span>
+                            <span>Sync</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div class="sync-status">
+                            <div class="sync-indicator synced"></div>
+                            <span>Up to date</span>
+                        </div>
+                        <button class="mini-button" style="width: 100%;">
+                            Fetch
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Branch -->
+                <div class="widget branch-widget">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">🌳</span>
+                            <span>Branch</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div class="branch-display">
+                            <span>main</span>
+                            <span style="font-size: 10px;">▼</span>
+                        </div>
+                        <div class="branch-actions">
+                            <button class="mini-button">+ New</button>
+                            <button class="mini-button">↺ Undo</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="spacer"></div>
+                
+                <!-- Save (always on right) -->
+                <div class="widget save-widget">
+                    <div class="widget-content" style="justify-content: center;">
+                        <button class="save-button" disabled style="opacity: 0.6; cursor: not-allowed;">
+                            💾 No Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Design 2: With Changes -->
+        <h2>Design 2: Active Development (3 Files Changed)</h2>
+        <div class="mockup">
+            <div class="widget-bar">
+                <!-- Utils -->
+                <div class="widget utils-widget collapsed">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">🛠</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div class="collapse-icon">🛠</div>
+                    </div>
+                </div>
+                
+                <!-- Status (new widget showing files) -->
+                <div class="widget status-widget">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">📊</span>
+                            <span>Changes (3)</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div class="file-list">
+                            <div class="file-item">
+                                <span class="file-status added">+</span>
+                                <span>components/Widget.tsx</span>
+                            </div>
+                            <div class="file-item">
+                                <span class="file-status modified">M</span>
+                                <span>App.tsx</span>
+                            </div>
+                            <div class="file-item">
+                                <span class="file-status deleted">-</span>
+                                <span>old/renderer.js</span>
+                            </div>
+                        </div>
+                        <div class="expand-toggle">Show all →</div>
+                    </div>
+                </div>
+                
+                <!-- Sync -->
+                <div class="widget sync-widget">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">🔄</span>
+                            <span>Sync</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div class="sync-status">
+                            <div class="sync-indicator behind"></div>
+                            <span>2 behind</span>
+                        </div>
+                        <button class="mini-button" style="width: 100%;">
+                            Pull & Merge
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Branch -->
+                <div class="widget branch-widget">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">🌳</span>
+                            <span>Branch</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div class="branch-display">
+                            <span>feat/widgets</span>
+                            <span style="font-size: 10px;">▼</span>
+                        </div>
+                        <div class="branch-actions">
+                            <button class="mini-button">+ New</button>
+                            <button class="mini-button">↺ Undo</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="spacer"></div>
+                
+                <!-- Save (always on right) -->
+                <div class="widget save-widget">
+                    <div class="widget-content" style="justify-content: center;">
+                        <button class="save-button">
+                            💾 Save (3)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Design 3: Expanded Status -->
+        <h2>Design 3: Expanded File View (Many Changes)</h2>
+        <div class="mockup">
+            <div class="widget-bar">
+                <!-- Utils -->
+                <div class="widget utils-widget">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">🛠</span>
+                            <span>Utils</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div class="util-buttons">
+                            <div class="util-btn">
+                                <div>📁</div>
+                            </div>
+                            <div class="util-btn">
+                                <div>🌐</div>
+                            </div>
+                            <div class="util-btn">
+                                <div>🤖</div>
+                            </div>
+                            <div class="util-btn">
+                                <div>⚡</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Status - Expanded -->
+                <div class="widget status-widget expanded">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">📊</span>
+                            <span>Changes (12)</span>
+                        </div>
+                        <span style="font-size: 10px; cursor: pointer;">Collapse ↑</span>
+                    </div>
+                    <div class="widget-content">
+                        <div class="file-list">
+                            <div class="file-item">
+                                <span class="file-status added">+</span>
+                                <span>components/Widget.tsx</span>
+                            </div>
+                            <div class="file-item">
+                                <span class="file-status added">+</span>
+                                <span>components/Dashboard.tsx</span>
+                            </div>
+                            <div class="file-item">
+                                <span class="file-status added">+</span>
+                                <span>components/SaveButton.tsx</span>
+                            </div>
+                            <div class="file-item">
+                                <span class="file-status modified">M</span>
+                                <span>App.tsx</span>
+                            </div>
+                            <div class="file-item">
+                                <span class="file-status modified">M</span>
+                                <span>package.json</span>
+                            </div>
+                            <div class="file-item">
+                                <span class="file-status modified">M</span>
+                                <span>tsconfig.json</span>
+                            </div>
+                            <div class="file-item">
+                                <span class="file-status deleted">-</span>
+                                <span>old/renderer.js</span>
+                            </div>
+                            <div class="file-item">
+                                <span class="file-status deleted">-</span>
+                                <span>old/styles.css</span>
+                            </div>
+                            <div style="color: #8b949e; font-size: 11px; margin-top: 4px;">
+                                + 4 more files...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sync -->
+                <div class="widget sync-widget">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">🔄</span>
+                            <span>Sync</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div class="sync-status">
+                            <div class="sync-indicator ahead"></div>
+                            <span>5 ahead</span>
+                        </div>
+                        <button class="mini-button" style="width: 100%;">
+                            Push
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Branch -->
+                <div class="widget branch-widget">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">🌳</span>
+                            <span>Branch</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div class="branch-display">
+                            <span>react-migration</span>
+                            <span style="font-size: 10px;">▼</span>
+                        </div>
+                        <div class="branch-actions">
+                            <button class="mini-button">+ New</button>
+                            <button class="mini-button">↺ Undo</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="spacer"></div>
+                
+                <!-- Save (always on right) -->
+                <div class="widget save-widget">
+                    <div class="widget-content" style="justify-content: center;">
+                        <button class="save-button">
+                            💾 Save (12)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Design 4: Super Minimal -->
+        <h2>Design 4: Ultra Compact (60px height)</h2>
+        <div class="mockup">
+            <div class="widget-bar" style="min-height: 60px; padding: 8px;">
+                <!-- Utils -->
+                <div class="widget utils-widget" style="min-width: 80px;">
+                    <div class="widget-content" style="padding: 6px;">
+                        <div class="util-buttons" style="gap: 4px;">
+                            <div class="util-btn" style="font-size: 14px; padding: 4px;">📁</div>
+                            <div class="util-btn" style="font-size: 14px; padding: 4px;">🌐</div>
+                            <div class="util-btn" style="font-size: 14px; padding: 4px;">🤖</div>
+                            <div class="util-btn" style="font-size: 14px; padding: 4px;">⚡</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Compact Status -->
+                <div class="widget" style="min-width: 140px;">
+                    <div class="widget-content" style="padding: 8px; flex-direction: row; align-items: center; gap: 12px;">
+                        <div>
+                            <div style="font-size: 10px; color: #8b949e;">Files</div>
+                            <div style="font-size: 14px; font-weight: 600; color: #f0883e;">3 changed</div>
+                        </div>
+                        <div style="font-size: 10px; color: #58a6ff; cursor: pointer;">View →</div>
+                    </div>
+                </div>
+                
+                <!-- Compact Sync -->
+                <div class="widget" style="min-width: 100px;">
+                    <div class="widget-content" style="padding: 8px;">
+                        <button class="mini-button" style="width: 100%; padding: 6px;">
+                            🔄 Fetch
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Compact Branch -->
+                <div class="widget" style="min-width: 180px;">
+                    <div class="widget-content" style="padding: 8px; flex-direction: row; gap: 6px;">
+                        <div class="branch-display" style="margin: 0; padding: 6px 10px; flex: 1;">
+                            <span>main</span>
+                            <span style="font-size: 10px;">▼</span>
+                        </div>
+                        <button class="mini-button" style="padding: 6px 8px;">New</button>
+                        <button class="mini-button" style="padding: 6px 8px;">↺</button>
+                    </div>
+                </div>
+                
+                <div class="spacer"></div>
+                
+                <!-- Compact Save -->
+                <div class="widget save-widget" style="min-width: 140px;">
+                    <div class="widget-content" style="padding: 8px;">
+                        <button class="save-button" style="padding: 8px 16px; font-size: 14px;">
+                            💾 Save (3)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Design 5: Commit Message Input -->
+        <h2>Design 5: With Commit Message Input</h2>
+        <div class="mockup">
+            <div class="widget-bar">
+                <!-- Utils -->
+                <div class="widget utils-widget collapsed">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">🛠</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div class="collapse-icon">🛠</div>
+                    </div>
+                </div>
+                
+                <!-- Status -->
+                <div class="widget status-widget">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">📊</span>
+                            <span>Changes (5)</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div class="file-list">
+                            <div class="file-item">
+                                <span class="file-status added">+</span>
+                                <span>Widget.tsx</span>
+                            </div>
+                            <div class="file-item">
+                                <span class="file-status modified">M</span>
+                                <span>App.tsx</span>
+                            </div>
+                            <div style="color: #8b949e; font-size: 11px;">
+                                +3 more...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Commit Message -->
+                <div class="widget" style="min-width: 250px;">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">💬</span>
+                            <span>Message</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <input type="text" placeholder="Describe your changes..." style="
+                            background: #0d1117;
+                            border: 1px solid #30363d;
+                            padding: 8px;
+                            border-radius: 4px;
+                            color: #c9d1d9;
+                            font-size: 12px;
+                            width: 100%;
+                        ">
+                    </div>
+                </div>
+                
+                <!-- Branch -->
+                <div class="widget branch-widget">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">🌳</span>
+                            <span>Branch</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div class="branch-display">
+                            <span>main</span>
+                            <span style="font-size: 10px;">▼</span>
+                        </div>
+                        <div class="branch-actions">
+                            <button class="mini-button">+ New</button>
+                            <button class="mini-button">↺ Undo</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="spacer"></div>
+                
+                <!-- Save with Push option -->
+                <div class="widget save-widget" style="min-width: 200px;">
+                    <div class="widget-content">
+                        <button class="save-button">
+                            💾 Save (5)
+                        </button>
+                        <label style="display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 11px; color: rgba(255,255,255,0.8);">
+                            <input type="checkbox" checked>
+                            Push after save
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

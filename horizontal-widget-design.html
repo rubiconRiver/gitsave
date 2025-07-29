@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitSave - Horizontal Widget Bar Design</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #c9d1d9;
+            padding: 40px 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #58a6ff;
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+        
+        h2 {
+            color: #58a6ff;
+            margin: 60px 0 20px;
+            font-size: 24px;
+        }
+        
+        .mockup-container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        
+        .description {
+            text-align: center;
+            color: #8b949e;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+        
+        /* Mockup Chrome */
+        .mockup {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            margin-bottom: 40px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+        
+        .mockup-header {
+            background: #161b22;
+            padding: 8px 12px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+            color: #8b949e;
+        }
+        
+        /* Horizontal Bar Layout */
+        .widget-bar {
+            display: flex;
+            align-items: stretch;
+            padding: 12px;
+            gap: 12px;
+            min-height: 120px;
+            background: #0d1117;
+        }
+        
+        /* Widgets */
+        .widget {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            min-width: 160px;
+            transition: all 0.2s ease;
+        }
+        
+        .widget:hover {
+            border-color: #58a6ff;
+            box-shadow: 0 4px 12px rgba(88, 166, 255, 0.2);
+        }
+        
+        .widget-header {
+            padding: 8px 12px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #8b949e;
+        }
+        
+        .widget-title {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+        }
+        
+        .widget-content {
+            padding: 12px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        /* Special Widget Styles */
+        .save-widget {
+            background: #238636;
+            border-color: #2ea043;
+            min-width: 280px;
+        }
+        
+        .save-widget:hover {
+            background: #2ea043;
+            border-color: #3fb950;
+            box-shadow: 0 4px 16px rgba(63, 185, 80, 0.3);
+        }
+        
+        .save-widget .widget-header {
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .save-widget .widget-title {
+            color: white;
+            font-weight: 600;
+        }
+        
+        .big-button {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        
+        .big-button:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.3);
+            transform: translateY(-1px);
+        }
+        
+        .big-button:active {
+            transform: translateY(0);
+        }
+        
+        .big-button.primary {
+            background: white;
+            color: #238636;
+        }
+        
+        .big-button.primary:hover {
+            background: rgba(255,255,255,0.9);
+        }
+        
+        /* Status Widget */
+        .status-widget {
+            min-width: 200px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .status-dot.clean { background: #3fb950; }
+        .status-dot.changes { background: #f0883e; }
+        .status-dot.error { background: #f85149; }
+        
+        /* Branch Widget */
+        .branch-widget {
+            min-width: 180px;
+        }
+        
+        .branch-display {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #0d1117;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        .branch-display:hover {
+            background: #21262d;
+        }
+        
+        /* Quick Actions */
+        .actions-widget {
+            min-width: 140px;
+        }
+        
+        .action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .action-btn {
+            aspect-ratio: 1;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .action-btn:hover {
+            background: #30363d;
+            border-color: #58a6ff;
+        }
+        
+        .action-icon {
+            font-size: 20px;
+            margin-bottom: 2px;
+        }
+        
+        .action-label {
+            font-size: 10px;
+            color: #8b949e;
+        }
+        
+        /* Expandable widgets */
+        .expandable {
+            cursor: pointer;
+        }
+        
+        .expand-icon {
+            transition: transform 0.2s;
+        }
+        
+        .expanded .expand-icon {
+            transform: rotate(180deg);
+        }
+        
+        /* Widget sizes */
+        .widget.collapsed {
+            min-width: 60px;
+        }
+        
+        .widget.collapsed .widget-content {
+            padding: 8px;
+        }
+        
+        .widget.collapsed .widget-title span:not(.widget-icon) {
+            display: none;
+        }
+        
+        /* Divider */
+        .divider {
+            width: 1px;
+            background: #30363d;
+            margin: 0 4px;
+        }
+        
+        /* Different layouts */
+        .layout-minimal {
+            min-height: 80px;
+        }
+        
+        .layout-minimal .widget {
+            min-width: 120px;
+        }
+        
+        .layout-minimal .save-widget {
+            min-width: 200px;
+        }
+        
+        .layout-minimal .big-button {
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+        
+        /* Expanded view */
+        .expanded-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        
+        .widget.expanded .expanded-content {
+            max-height: 300px;
+        }
+        
+        /* Add widget button */
+        .add-widget {
+            width: 40px;
+            background: transparent;
+            border: 2px dashed #30363d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #8b949e;
+            font-size: 24px;
+        }
+        
+        .add-widget:hover {
+            border-color: #58a6ff;
+            color: #58a6ff;
+        }
+        
+        /* Responsive behavior */
+        @media (max-width: 1200px) {
+            .widget-bar {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>GitSave - Horizontal Widget Bar</h1>
+    <p class="description">
+        Designed to sit at the top of your screen as a persistent, expandable toolbar.<br>
+        Large action buttons for easy access, widgets expand horizontally as needed.
+    </p>
+
+    <div class="mockup-container">
+        <!-- Design 1: Default View -->
+        <h2>Design 1: Default Compact View</h2>
+        <div class="mockup">
+            <div class="mockup-header">
+                GitSave - MyAwesomeProject (main)
+            </div>
+            <div class="widget-bar">
+                <!-- Save Widget - Always Prominent -->
+                <div class="widget save-widget">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">💾</span>
+                            <span>Save</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <button class="big-button primary">
+                            Save Changes (3 files)
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Status Widget -->
+                <div class="widget status-widget">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">📊</span>
+                            <span>Status</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div class="status-indicator">
+                            <div class="status-dot changes"></div>
+                            <span style="font-size: 14px; font-weight: 500;">3 files modified</span>
+                        </div>
+                        <div style="font-size: 12px; color: #8b949e;">
+                            src/App.tsx +12 -3
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Branch Widget -->
+                <div class="widget branch-widget">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">🌳</span>
+                            <span>Branch</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div class="branch-display">
+                            <span style="font-weight: 500;">main</span>
+                            <span style="font-size: 18px;">▼</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="divider"></div>
+                
+                <!-- Quick Actions -->
+                <div class="widget actions-widget">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">⚡</span>
+                            <span>Quick</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div class="action-grid">
+                            <div class="action-btn">
+                                <div class="action-icon">↑</div>
+                                <div class="action-label">Push</div>
+                            </div>
+                            <div class="action-btn">
+                                <div class="action-icon">↓</div>
+                                <div class="action-label">Pull</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Add Widget -->
+                <div class="widget add-widget">
+                    +
+                </div>
+            </div>
+        </div>
+
+        <!-- Design 2: Minimal View -->
+        <h2>Design 2: Ultra Minimal (80px height)</h2>
+        <div class="mockup">
+            <div class="mockup-header">
+                GitSave - Compact Mode
+            </div>
+            <div class="widget-bar layout-minimal">
+                <!-- Save Widget - Smaller but still prominent -->
+                <div class="widget save-widget">
+                    <div class="widget-content" style="padding: 8px;">
+                        <button class="big-button primary">
+                            💾 Save (3)
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Combined Status -->
+                <div class="widget" style="min-width: 250px;">
+                    <div class="widget-content" style="flex-direction: row; align-items: center; gap: 20px;">
+                        <div>
+                            <div style="font-size: 11px; color: #8b949e;">Branch</div>
+                            <div style="font-size: 14px; font-weight: 500; color: #58a6ff;">main</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; color: #8b949e;">Status</div>
+                            <div style="font-size: 14px; font-weight: 500; color: #f0883e;">3 changes</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; color: #8b949e;">Behind</div>
+                            <div style="font-size: 14px; font-weight: 500;">2 commits</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick buttons -->
+                <div class="widget" style="min-width: 200px;">
+                    <div class="widget-content" style="flex-direction: row; gap: 8px;">
+                        <button class="big-button" style="padding: 8px 16px; font-size: 14px; flex: 1;">
+                            ↑ Push
+                        </button>
+                        <button class="big-button" style="padding: 8px 16px; font-size: 14px; flex: 1;">
+                            ↓ Pull
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Design 3: Expanded View with More Widgets -->
+        <h2>Design 3: Extended Workspace</h2>
+        <div class="mockup">
+            <div class="mockup-header">
+                GitSave - Full Feature Set
+            </div>
+            <div class="widget-bar">
+                <!-- Save Widget -->
+                <div class="widget save-widget">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">💾</span>
+                            <span>Commit</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <input type="text" placeholder="Commit message..." style="
+                            background: rgba(255,255,255,0.1);
+                            border: 1px solid rgba(255,255,255,0.2);
+                            padding: 8px;
+                            border-radius: 4px;
+                            color: white;
+                            margin-bottom: 8px;
+                            font-size: 13px;
+                        ">
+                        <button class="big-button primary">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Git Status -->
+                <div class="widget status-widget">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">📊</span>
+                            <span>Changes</span>
+                        </div>
+                        <span class="expand-icon">▼</span>
+                    </div>
+                    <div class="widget-content">
+                        <div style="font-size: 13px; line-height: 1.5;">
+                            <div style="color: #3fb950;">+ Widget.tsx</div>
+                            <div style="color: #f0883e;">M App.tsx</div>
+                            <div style="color: #f85149;">- old.js</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Team Activity -->
+                <div class="widget" style="min-width: 200px;">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">👥</span>
+                            <span>Team</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <div style="display: flex; gap: -8px;">
+                                <div style="width: 28px; height: 28px; border-radius: 50%; background: #58a6ff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">JD</div>
+                                <div style="width: 28px; height: 28px; border-radius: 50%; background: #f0883e; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-left: -8px;">SE</div>
+                            </div>
+                            <div style="font-size: 12px;">
+                                <div style="font-weight: 500;">2 active</div>
+                                <div style="color: #8b949e;">in feat/ui</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tasks -->
+                <div class="widget" style="min-width: 180px;">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">✅</span>
+                            <span>Tasks</span>
+                        </div>
+                        <span style="background: #f85149; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px;">3</span>
+                    </div>
+                    <div class="widget-content">
+                        <div style="font-size: 12px;">
+                            <div style="margin-bottom: 4px;">
+                                <input type="checkbox" style="margin-right: 6px;">
+                                Fix build error
+                            </div>
+                            <div style="margin-bottom: 4px;">
+                                <input type="checkbox" style="margin-right: 6px;">
+                                Update docs
+                            </div>
+                            <div style="color: #8b949e; font-size: 11px; margin-top: 8px;">
+                                +1 more...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="divider"></div>
+                
+                <!-- Utilities -->
+                <div class="widget" style="min-width: 100px;">
+                    <div class="widget-header">
+                        <div class="widget-title">
+                            <span class="widget-icon">🛠</span>
+                            <span>Tools</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <div class="action-grid" style="grid-template-columns: 1fr;">
+                            <div class="action-btn" style="aspect-ratio: 2/1;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span class="action-icon">🤖</span>
+                                    <span style="font-size: 11px;">Claude</span>
+                                </div>
+                            </div>
+                            <div class="action-btn" style="aspect-ratio: 2/1;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span class="action-icon">📁</span>
+                                    <span style="font-size: 11px;">Finder</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AI Assistant -->
+                <div class="widget" style="min-width: 160px; background: #1c2128;">
+                    <div class="widget-header">
+                        <div class="widget-title" style="color: #7ee787;">
+                            <span class="widget-icon">🤖</span>
+                            <span>AI Ready</span>
+                        </div>
+                    </div>
+                    <div class="widget-content">
+                        <button class="big-button" style="background: #7ee787; color: #0d1117; font-size: 14px; padding: 10px;">
+                            Ask Claude
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Design 4: Focus Mode -->
+        <h2>Design 4: Focus Mode (Just the Essentials)</h2>
+        <div class="mockup">
+            <div class="mockup-header">
+                GitSave - Focus Mode
+            </div>
+            <div class="widget-bar" style="justify-content: center;">
+                <!-- Giant Save Button -->
+                <div class="widget save-widget" style="min-width: 400px;">
+                    <div class="widget-content" style="padding: 20px;">
+                        <button class="big-button primary" style="font-size: 24px; padding: 20px 40px;">
+                            💾 Save All Changes
+                        </button>
+                        <div style="text-align: center; margin-top: 8px; font-size: 12px; color: rgba(255,255,255,0.7);">
+                            3 files modified • Last save: 5 min ago
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Collapsed widgets on the side -->
+                <div class="widget collapsed">
+                    <div class="widget-content">
+                        <div class="widget-icon" style="font-size: 24px; text-align: center;">📊</div>
+                    </div>
+                </div>
+                
+                <div class="widget collapsed">
+                    <div class="widget-content">
+                        <div class="widget-icon" style="font-size: 24px; text-align: center;">🌳</div>
+                    </div>
+                </div>
+                
+                <div class="widget collapsed">
+                    <div class="widget-content">
+                        <div class="widget-icon" style="font-size: 24px; text-align: center;">👥</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feature Highlights -->
+        <h2 style="margin-top: 80px;">Key Design Principles</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 40px;">
+            <div class="widget">
+                <div class="widget-header">
+                    <div class="widget-title">🎯 Action-First Design</div>
+                </div>
+                <div class="widget-content">
+                    <ul style="list-style: none; line-height: 1.8; font-size: 14px;">
+                        <li>• Save button is always the largest, most prominent element</li>
+                        <li>• One-click access to all primary actions</li>
+                        <li>• Visual hierarchy guides users to most important features</li>
+                        <li>• Minimal clicks to accomplish any task</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="widget">
+                <div class="widget-header">
+                    <div class="widget-title">📏 Adaptive Width</div>
+                </div>
+                <div class="widget-content">
+                    <ul style="list-style: none; line-height: 1.8; font-size: 14px;">
+                        <li>• Starts compact (600px) for minimal screen usage</li>
+                        <li>• Expands horizontally as widgets are added</li>
+                        <li>• Widgets can collapse to icons to save space</li>
+                        <li>• Scrollable on smaller screens</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="widget">
+                <div class="widget-header">
+                    <div class="widget-title">🖱️ Top-Screen Optimized</div>
+                </div>
+                <div class="widget-content">
+                    <ul style="list-style: none; line-height: 1.8; font-size: 14px;">
+                        <li>• Designed to sit at top of screen</li>
+                        <li>• Works perfectly with Claude at bottom</li>
+                        <li>• Always accessible without alt-tabbing</li>
+                        <li>• Can auto-hide when not in use</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

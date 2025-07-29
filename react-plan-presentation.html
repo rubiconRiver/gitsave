@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitSave React Migration Plan</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        .presentation {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .slide {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            margin-bottom: 80px;
+        }
+        
+        h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #58a6ff;
+        }
+        
+        h2 {
+            font-size: 36px;
+            margin-bottom: 30px;
+            color: #58a6ff;
+        }
+        
+        h3 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #7ee787;
+        }
+        
+        .component-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 40px;
+        }
+        
+        .component-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .component-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            border-color: #58a6ff;
+        }
+        
+        .component-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #58a6ff;
+            margin-bottom: 10px;
+        }
+        
+        .component-purpose {
+            color: #8b949e;
+            margin-bottom: 15px;
+        }
+        
+        .component-features {
+            list-style: none;
+        }
+        
+        .component-features li {
+            padding-left: 20px;
+            position: relative;
+            margin-bottom: 5px;
+            color: #c9d1d9;
+        }
+        
+        .component-features li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #7ee787;
+        }
+        
+        .architecture-diagram {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 40px;
+            margin: 40px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .flow-container {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .flow-box {
+            background: #0d1117;
+            border: 2px solid #30363d;
+            border-radius: 8px;
+            padding: 20px 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .flow-box.main {
+            border-color: #f85149;
+            box-shadow: 0 0 20px rgba(248, 81, 73, 0.3);
+        }
+        
+        .flow-box.renderer {
+            border-color: #58a6ff;
+            box-shadow: 0 0 20px rgba(88, 166, 255, 0.3);
+        }
+        
+        .flow-box.api {
+            border-color: #7ee787;
+            box-shadow: 0 0 20px rgba(126, 231, 135, 0.3);
+        }
+        
+        .flow-arrow {
+            font-size: 24px;
+            color: #58a6ff;
+        }
+        
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            margin-top: 40px;
+        }
+        
+        .benefit-item {
+            display: flex;
+            align-items: start;
+            gap: 15px;
+        }
+        
+        .benefit-icon {
+            font-size: 32px;
+            flex-shrink: 0;
+        }
+        
+        .benefit-content h4 {
+            color: #58a6ff;
+            margin-bottom: 5px;
+        }
+        
+        .benefit-content p {
+            color: #8b949e;
+        }
+        
+        .timeline {
+            margin-top: 40px;
+        }
+        
+        .timeline-item {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        
+        .timeline-marker {
+            width: 40px;
+            height: 40px;
+            background: #161b22;
+            border: 2px solid #58a6ff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+            z-index: 1;
+        }
+        
+        .timeline-item:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 19px;
+            top: 40px;
+            width: 2px;
+            height: calc(100% + 10px);
+            background: #30363d;
+        }
+        
+        .timeline-content {
+            flex: 1;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .timeline-content h4 {
+            color: #7ee787;
+            margin-bottom: 10px;
+        }
+        
+        .code-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .code-block {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            overflow-x: auto;
+        }
+        
+        .code-block h4 {
+            color: #8b949e;
+            margin-bottom: 15px;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        
+        pre {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .highlight {
+            background: rgba(88, 166, 255, 0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="presentation">
+        <!-- Slide 1: Title -->
+        <div class="slide">
+            <h1>GitSave React Migration</h1>
+            <p style="font-size: 24px; color: #8b949e;">Transforming our vanilla JS app into a modern React application</p>
+            <p style="margin-top: 40px; color: #58a6ff;">Scroll to explore the plan →</p>
+        </div>
+
+        <!-- Slide 2: Why React? -->
+        <div class="slide">
+            <h2>Why Move to React?</h2>
+            <div class="benefits-grid">
+                <div class="benefit-item">
+                    <div class="benefit-icon">🧩</div>
+                    <div class="benefit-content">
+                        <h4>Component Architecture</h4>
+                        <p>Break down our 900+ line renderer.js into manageable, reusable components</p>
+                    </div>
+                </div>
+                <div class="benefit-item">
+                    <div class="benefit-icon">🔥</div>
+                    <div class="benefit-content">
+                        <h4>Hot Reload</h4>
+                        <p>Instant UI updates during development, even in the menubar</p>
+                    </div>
+                </div>
+                <div class="benefit-item">
+                    <div class="benefit-icon">📊</div>
+                    <div class="benefit-content">
+                        <h4>Better State Management</h4>
+                        <p>Clean, predictable state updates with React hooks and context</p>
+                    </div>
+                </div>
+                <div class="benefit-item">
+                    <div class="benefit-icon">🚀</div>
+                    <div class="benefit-content">
+                        <h4>Scalability</h4>
+                        <p>Easier to add new features and maintain growing codebase</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Architecture -->
+        <div class="slide">
+            <h2>Architecture Overview</h2>
+            <div class="architecture-diagram">
+                <div class="flow-container">
+                    <div class="flow-box main">
+                        <h4>Main Process</h4>
+                        <p>main.ts</p>
+                        <small>Git operations, IPC</small>
+                    </div>
+                    <div class="flow-arrow">⟷</div>
+                    <div class="flow-box api">
+                        <h4>Preload Bridge</h4>
+                        <p>preload.ts</p>
+                        <small>Secure API exposure</small>
+                    </div>
+                    <div class="flow-arrow">⟷</div>
+                    <div class="flow-box renderer">
+                        <h4>React App</h4>
+                        <p>Components + Hooks</p>
+                        <small>UI & State</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Component Breakdown -->
+        <div class="slide">
+            <h2>Component Structure</h2>
+            <div class="component-grid">
+                <div class="component-card">
+                    <div class="component-name">App.tsx</div>
+                    <div class="component-purpose">Root component & layout</div>
+                    <ul class="component-features">
+                        <li>Main layout structure</li>
+                        <li>Global state provider</li>
+                        <li>Error boundaries</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <div class="component-name">Header.tsx</div>
+                    <div class="component-purpose">Project info & navigation</div>
+                    <ul class="component-features">
+                        <li>Project name display</li>
+                        <li>Branch selector</li>
+                        <li>Branch ownership indicator</li>
+                        <li>Settings button</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <div class="component-name">GitStatus.tsx</div>
+                    <div class="component-purpose">Repository status display</div>
+                    <ul class="component-features">
+                        <li>Changed files count</li>
+                        <li>Click to view diff</li>
+                        <li>Real-time updates</li>
+                        <li>Status indicators</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <div class="component-name">SaveButton.tsx</div>
+                    <div class="component-purpose">Commit functionality</div>
+                    <ul class="component-features">
+                        <li>Commit message input</li>
+                        <li>Smart commit detection</li>
+                        <li>Branch ownership checks</li>
+                        <li>Loading states</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <div class="component-name">GitActions.tsx</div>
+                    <div class="component-purpose">Git operation buttons</div>
+                    <ul class="component-features">
+                        <li>Push button</li>
+                        <li>Sync button</li>
+                        <li>Branch switcher</li>
+                        <li>Operation feedback</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <div class="component-name">TaskPanel.tsx</div>
+                    <div class="component-purpose">Task management UI</div>
+                    <ul class="component-features">
+                        <li>Task list display</li>
+                        <li>Create new tasks</li>
+                        <li>Task status updates</li>
+                        <li>Priority indicators</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <div class="component-name">CollaborationView.tsx</div>
+                    <div class="component-purpose">Team features container</div>
+                    <ul class="component-features">
+                        <li>Project goals</li>
+                        <li>Team tasks</li>
+                        <li>Recent builds</li>
+                        <li>Collapsible sections</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <div class="component-name">QuickActions.tsx</div>
+                    <div class="component-purpose">Bottom action bar</div>
+                    <ul class="component-features">
+                        <li>Open folder</li>
+                        <li>Open GitHub</li>
+                        <li>Select repository</li>
+                        <li>Quit app</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Custom Hooks -->
+        <div class="slide">
+            <h2>Custom React Hooks</h2>
+            <div class="component-grid">
+                <div class="component-card">
+                    <div class="component-name">useGitStatus</div>
+                    <div class="component-purpose">Git repository state</div>
+                    <ul class="component-features">
+                        <li>Current branch</li>
+                        <li>Changed files</li>
+                        <li>Remote status</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <div class="component-name">useTasks</div>
+                    <div class="component-purpose">Task management</div>
+                    <ul class="component-features">
+                        <li>CRUD operations</li>
+                        <li>Task filtering</li>
+                        <li>Real-time sync</li>
+                    </ul>
+                </div>
+
+                <div class="component-card">
+                    <div class="component-name">useIPC</div>
+                    <div class="component-purpose">Electron communication</div>
+                    <ul class="component-features">
+                        <li>Event listeners</li>
+                        <li>Auto cleanup</li>
+                        <li>Type safety</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Code Comparison -->
+        <div class="slide">
+            <h2>Before & After</h2>
+            <div class="code-comparison">
+                <div class="code-block">
+                    <h4>Current: Vanilla JS</h4>
+                    <pre><code>// Event listener setup
+saveButton.addEventListener('click', handleSave);
+
+// Manual DOM updates
+function updateStatus(hasChanges) {
+  if (hasChanges) {
+    saveButton.disabled = false;
+    saveButton.innerHTML = `...`;
+    status.textContent = `${filesChanged} files`;
+  } else {
+    saveButton.disabled = true;
+    // ... more DOM manipulation
+  }
+}
+
+// State scattered across variables
+let isProcessing = false;
+let hasChanges = false;
+let currentBranch = '';</code></pre>
+                </div>
+                <div class="code-block">
+                    <h4>New: React</h4>
+                    <pre><code>// Component with hooks
+function SaveButton() {
+  const { hasChanges, filesChanged } = useGitStatus();
+  const [isProcessing, setProcessing] = useState(false);
+  
+  return (
+    &lt;button 
+      disabled={!hasChanges || isProcessing}
+      onClick={handleSave}
+    &gt;
+      {hasChanges 
+        ? `Save Changes (${filesChanged} files)`
+        : 'No changes to save'}
+    &lt;/button&gt;
+  );
+}</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: Migration Timeline -->
+        <div class="slide">
+            <h2>Migration Timeline</h2>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-marker">1</div>
+                    <div class="timeline-content">
+                        <h4>Setup & Configuration (2 hours)</h4>
+                        <p>Install React, Vite, configure hot reload for menubar app</p>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-marker">2</div>
+                    <div class="timeline-content">
+                        <h4>Core Components (4 hours)</h4>
+                        <p>Create main UI components: Header, GitStatus, SaveButton, GitActions</p>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-marker">3</div>
+                    <div class="timeline-content">
+                        <h4>State Management (2 hours)</h4>
+                        <p>Set up React Context, migrate state from vanilla JS</p>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-marker">4</div>
+                    <div class="timeline-content">
+                        <h4>Hook Integration (2 hours)</h4>
+                        <p>Create custom hooks for IPC communication and API calls</p>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-marker">5</div>
+                    <div class="timeline-content">
+                        <h4>Testing & Polish (1 hour)</h4>
+                        <p>Test production build, clean up old files, update docs</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 8: Next Steps -->
+        <div class="slide">
+            <h2>Ready to Start?</h2>
+            <div style="text-align: center; margin-top: 60px;">
+                <p style="font-size: 24px; margin-bottom: 40px;">This migration will transform GitSave into a more maintainable and scalable application</p>
+                <div style="display: flex; gap: 30px; justify-content: center; margin-top: 60px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 48px; color: #58a6ff; font-weight: bold;">11</div>
+                        <div style="color: #8b949e;">Hours estimated</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 48px; color: #7ee787; font-weight: bold;">8</div>
+                        <div style="color: #8b949e;">Main components</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 48px; color: #f85149; font-weight: bold;">1</div>
+                        <div style="color: #8b949e;">Happy developer</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

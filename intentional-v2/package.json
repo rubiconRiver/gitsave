@@ -1,0 +1,21 @@
+{
+  "name": "intentional-v2",
+  "version": "2.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:electron\"",
+    "dev:backend": "npm run dev --workspace=@intentional/backend",
+    "dev:frontend": "npm run dev --workspace=@intentional/frontend", 
+    "dev:electron": "npm run dev --workspace=@intentional/electron",
+    "build": "npm run build --workspaces",
+    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.3"
+  }
+}

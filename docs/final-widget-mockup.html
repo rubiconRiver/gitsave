@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitSave - Final Widget Design</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #c9d1d9;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        h1 {
+            color: #58a6ff;
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+        
+        .description {
+            color: #8b949e;
+            margin-bottom: 40px;
+            text-align: center;
+            max-width: 600px;
+        }
+        
+        /* The actual GitSave window */
+        .gitsave-window {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            display: inline-block;
+        }
+        
+        /* Widget Bar */
+        .widget-bar {
+            display: flex;
+            align-items: stretch;
+            padding: 10px;
+            gap: 10px;
+            min-height: 80px;
+        }
+        
+        /* Base Widget Styles */
+        .widget {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.2s ease;
+            overflow: hidden;
+        }
+        
+        .widget:hover {
+            border-color: #58a6ff;
+            box-shadow: 0 4px 12px rgba(88, 166, 255, 0.15);
+        }
+        
+        .widget-header {
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #8b949e;
+            font-weight: 500;
+        }
+        
+        .widget-title {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .widget-icon {
+            font-size: 14px;
+        }
+        
+        .widget-content {
+            padding: 10px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Utils Widget */
+        .utils-widget {
+            min-width: 100px;
+        }
+        
+        .util-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        
+        .util-btn {
+            aspect-ratio: 1;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 16px;
+        }
+        
+        .util-btn:hover {
+            background: #30363d;
+            border-color: #58a6ff;
+        }
+        
+        .util-label {
+            font-size: 9px;
+            color: #8b949e;
+            margin-top: 2px;
+        }
+        
+        /* Intents Widget - Special Styling */
+        .intents-widget {
+            min-width: 200px;
+            background: #1c2128;
+            border-color: #7ee787;
+        }
+        
+        .intents-widget:hover {
+            border-color: #7ee787;
+            box-shadow: 0 4px 12px rgba(126, 231, 135, 0.2);
+        }
+        
+        .intents-widget .widget-header {
+            color: #7ee787;
+        }
+        
+        .intent-item {
+            padding: 6px 8px;
+            background: #0d1117;
+            border-radius: 4px;
+            margin-bottom: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .intent-item:hover {
+            background: #161b22;
+            border: 1px solid #7ee787;
+            padding: 5px 7px;
+        }
+        
+        .intent-priority {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        
+        .priority-high { background: #f85149; }
+        .priority-medium { background: #f0883e; }
+        .priority-low { background: #58a6ff; }
+        
+        /* Sync Widget */
+        .sync-widget {
+            min-width: 120px;
+        }
+        
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .sync-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #3fb950;
+        }
+        
+        .mini-button {
+            padding: 4px 10px;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #c9d1d9;
+            width: 100%;
+        }
+        
+        .mini-button:hover {
+            background: #30363d;
+            border-color: #58a6ff;
+        }
+        
+        /* Branch Widget */
+        .branch-widget {
+            min-width: 160px;
+        }
+        
+        .branch-display {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            background: #0d1117;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .branch-display:hover {
+            background: #21262d;
+        }
+        
+        .branch-actions {
+            display: flex;
+            gap: 6px;
+        }
+        
+        /* Save Widget - Primary Action */
+        .save-widget {
+            background: #238636;
+            border-color: #2ea043;
+            min-width: 180px;
+        }
+        
+        .save-widget:hover {
+            background: #2ea043;
+            border-color: #3fb950;
+            box-shadow: 0 4px 16px rgba(63, 185, 80, 0.3);
+        }
+        
+        .save-button {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .save-button:hover {
+            background: rgba(255,255,255,0.25);
+            transform: translateY(-1px);
+        }
+        
+        .save-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>GitSave Widget UI - Final Design</h1>
+    <p class="description">
+        This is the final widget-based design for GitSave. A compact horizontal bar that sits at the top of your screen,
+        providing quick access to all Git operations with the new Intents system for project organization.
+    </p>
+    
+    <div class="gitsave-window">
+        <div class="widget-bar">
+            <!-- Utils Widget -->
+            <div class="widget utils-widget">
+                <div class="widget-header">
+                    <div class="widget-title">
+                        <span class="widget-icon">🛠</span>
+                        <span>Utils</span>
+                    </div>
+                </div>
+                <div class="widget-content">
+                    <div class="util-buttons">
+                        <div class="util-btn">
+                            <div>📁</div>
+                            <div class="util-label">Folder</div>
+                        </div>
+                        <div class="util-btn">
+                            <div>🌐</div>
+                            <div class="util-label">GitHub</div>
+                        </div>
+                        <div class="util-btn">
+                            <div>🤖</div>
+                            <div class="util-label">Claude</div>
+                        </div>
+                        <div class="util-btn">
+                            <div>⚡</div>
+                            <div class="util-label">Term</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Intents Widget (Featured) -->
+            <div class="widget intents-widget">
+                <div class="widget-header">
+                    <div class="widget-title">
+                        <span class="widget-icon">🎯</span>
+                        <span>Intents</span>
+                    </div>
+                </div>
+                <div class="widget-content">
+                    <div class="intent-item">
+                        <span class="intent-priority priority-high"></span>
+                        Launch v1.0
+                    </div>
+                    <div class="intent-item">
+                        <span class="intent-priority priority-medium"></span>
+                        React migration
+                    </div>
+                    <div style="font-size: 10px; color: #7ee787; text-align: center; margin-top: 6px; cursor: pointer;">
+                        + Add intent
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sync Widget -->
+            <div class="widget sync-widget">
+                <div class="widget-header">
+                    <div class="widget-title">
+                        <span class="widget-icon">🔄</span>
+                        <span>Sync</span>
+                    </div>
+                </div>
+                <div class="widget-content">
+                    <div class="sync-status">
+                        <div class="sync-indicator"></div>
+                        <span>Up to date</span>
+                    </div>
+                    <button class="mini-button">
+                        Fetch
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Branch Widget -->
+            <div class="widget branch-widget">
+                <div class="widget-header">
+                    <div class="widget-title">
+                        <span class="widget-icon">🌳</span>
+                        <span>Branch</span>
+                    </div>
+                </div>
+                <div class="widget-content">
+                    <div class="branch-display">
+                        <span>main</span>
+                        <span style="font-size: 10px;">▼</span>
+                    </div>
+                    <div class="branch-actions">
+                        <button class="mini-button">+ New</button>
+                        <button class="mini-button">↺ Undo</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Save Widget (Primary Action) -->
+            <div class="widget save-widget">
+                <div class="widget-content" style="justify-content: center;">
+                    <button class="save-button" disabled>
+                        💾 No Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
