@@ -1,0 +1,22 @@
+{
+  "name": "intentional",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Version control for the AI development era",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n \"frontend,electron\" -c \"cyan,yellow\" \"npm run dev:frontend\" \"npm run dev:electron\"",
+    "dev:frontend": "npm run dev --workspace=@intentional/frontend",
+    "dev:electron": "wait-on http://localhost:5173 && npm run dev --workspace=@intentional/electron",
+    "build": "npm run build --workspaces",
+    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.3",
+    "wait-on": "^7.2.0"
+  }
+}

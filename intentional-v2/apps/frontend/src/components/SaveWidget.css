@@ -1,0 +1,50 @@
+.save-widget {
+  background: #238636;
+  border-color: #2ea043;
+  min-width: 180px;
+}
+
+.save-widget:hover {
+  background: #2ea043;
+  border-color: #3fb950;
+  box-shadow: 0 4px 16px rgba(63, 185, 80, 0.3);
+}
+
+.save-widget .widget-header {
+  color: rgba(255,255,255,0.9);
+}
+
+.save-widget .widget-content {
+  justify-content: center;
+}
+
+.save-button {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.save-button:hover {
+  background: rgba(255,255,255,0.25);
+  transform: translateY(-1px);
+}
+
+.save-button:active {
+  transform: translateY(0);
+}
+
+.save-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

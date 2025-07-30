@@ -1,0 +1,9 @@
+.widget-bar {
+  display: flex;
+  align-items: stretch;
+  padding: 10px;
+  gap: 10px;
+  min-height: 80px;
+  background: #0d1117;
+  height: 100%;
+}
