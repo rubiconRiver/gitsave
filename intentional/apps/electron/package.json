@@ -5,7 +5,7 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
-    "dev": "npm run build && electron . --inspect",
+    "dev": "npm run build && NODE_ENV=development electron . --inspect",
     "start": "electron .",
     "dist": "electron-builder",
     "dist:mac": "electron-builder --mac"

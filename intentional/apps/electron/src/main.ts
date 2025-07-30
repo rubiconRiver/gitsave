@@ -9,7 +9,7 @@ app.whenReady().then(async () => {
   mb = menubar({
     index: process.env.NODE_ENV === 'development' 
       ? 'http://localhost:5173'
-      : `file://${path.join(__dirname, '../frontend/dist/index.html')}`,
+      : `file://${path.join(__dirname, '../../frontend/dist/index.html')}`,
     browserWindow: {
       width: 800,
       height: 100,
